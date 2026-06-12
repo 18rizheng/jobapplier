@@ -9,6 +9,11 @@ import requests
 HOURLY_TO_YEARLY = 2080
 
 
+def _s(value):
+    """pandas gives NaN (a truthy float) for missing strings - coerce to ''."""
+    return value if isinstance(value, str) else ""
+
+
 def _annualize(amount, interval):
     if amount is None or (isinstance(amount, float) and math.isnan(amount)):
         return None
@@ -39,18 +44,18 @@ def discover_jobspy(terms, sites, locations=("Remote",), hours_old=168, results_
         for row in df.to_dict("records"):
             yearly_min = _annualize(row.get("min_amount"), row.get("interval"))
             jobs.append({
-                "title": row.get("title") or "",
-                "company": row.get("company") or "",
-                "location": row.get("location"),
+                "title": _s(row.get("title")),
+                "company": _s(row.get("company")),
+                "location": _s(row.get("location")),
                 "is_remote": bool(row.get("is_remote")),
                 "salary_min": row.get("min_amount"),
                 "salary_max": row.get("max_amount"),
                 "salary_yearly_min": yearly_min,
                 "salary_source": "listed" if yearly_min else "unknown",
-                "url": row.get("job_url"),
-                "source": row.get("site"),
+                "url": _s(row.get("job_url")),
+                "source": _s(row.get("site")),
                 "date_posted": str(row.get("date_posted") or ""),
-                "description": row.get("description"),
+                "description": _s(row.get("description")),
             })
     return jobs
 
