@@ -114,3 +114,36 @@ def test_clean_letter_passthrough():
 def test_clean_letter_single_separator_unchanged():
     raw = "Intro line here that is long enough to keep.\n---\nMore content."
     assert "More content." in clean_letter(raw)
+
+
+# ---- docx tailoring engine (no LLM - exercises the template surgery) ----
+
+def _template_doc():
+    from docx import Document
+    from pipeline.tailor import TEMPLATE
+    return Document(TEMPLATE)
+
+
+def test_bullet_blocks_structure():
+    from pipeline.tailor import _bullet_blocks
+    blocks = _bullet_blocks(_template_doc())
+    assert len(blocks) == 3            # experience, skills, leadership
+    assert len(blocks[0]) >= 7         # experience bullets
+    assert len(blocks[1]) == 4         # skills lines
+
+
+def test_write_block_shrink_and_grow(tmp_path):
+    from pipeline.tailor import _bullet_blocks, _write_block
+    doc = _template_doc()
+    blocks = _bullet_blocks(doc)
+    _write_block(blocks[0], [f"bullet {i}" for i in range(7)])   # shrink 9 -> 7
+    _write_block(blocks[1], [f"skill {i}" for i in range(6)])    # grow 4 -> 6
+    out = tmp_path / "t.docx"
+    doc.save(out)
+
+    from docx import Document
+    from pipeline.tailor import _bullet_blocks as blocks_of
+    reloaded = blocks_of(Document(out))
+    assert [p.text for p in reloaded[0]] == [f"bullet {i}" for i in range(7)]
+    assert [p.text for p in reloaded[1]] == [f"skill {i}" for i in range(6)]
+    assert len(reloaded[2]) == 2       # leadership untouched
