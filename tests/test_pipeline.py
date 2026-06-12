@@ -233,14 +233,6 @@ def test_tailor_rejects_malformed_plans(monkeypatch, tmp_path):
                              tmp_path / "out.docx")
 
 
-def test_remediate_issue_parsing(tmp_path):
-    from remediate import issues_from_review
-    (tmp_path / "review.md").write_text(
-        "# Pre-flight review: FLAG\n\n## Blocking issues\n- issue one\n- issue two\n\n"
-        "## Notes\n- a note that must not be picked up\n", encoding="utf-8-sig")
-    assert issues_from_review(tmp_path) == ["issue one", "issue two"]
-
-
 def test_discover_ats_survives_bad_org():
     from pipeline.discovery import discover_ats
     jobs = discover_ats({"greenhouse_boards": ["this-board-does-not-exist-xyz"],

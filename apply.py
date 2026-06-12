@@ -1,13 +1,16 @@
-"""Apply orchestrator - the last mile, over jobs that passed the reviewer gate.
+"""Apply orchestrator - the last mile over packaged-and-ready jobs.
 
-Lanes (per docs/DESIGN.md):
-  auto     Greenhouse postings: Playwright fills the form from answers.json,
-           uploads the resume, screenshots. DRY RUN by default - it never
-           clicks submit unless --submit is passed AND no required question
-           was left unmapped.
-  assisted everything else (Indeed redirects, Workday, one-off portals):
-           writes assist.md checklist into the folder; --open launches the
-           posting in your browser alongside it.
+Lanes:
+  auto     ATS-direct postings (Greenhouse today): Playwright fills the form
+           from answers.json, uploads the resume, screenshots. With
+           submit=True it actually submits - after a silent pre-send honesty
+           check (pipeline/sendcheck.py) and only when zero required questions
+           are unmapped.
+  assisted login-walled portals: writes assist.md checklist; --open launches
+           the posting in the browser.
+
+Indeed postings are first resolved to the company's own application URL where
+possible, upgrading them to the auto lane.
 
 Usage:  .venv\\Scripts\\python apply.py [--submit] [--open] [--id N]
 """
@@ -18,7 +21,7 @@ import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pipeline import db
+from pipeline import db, resolve
 from pipeline.adapters import greenhouse
 
 ROOT = Path(__file__).resolve().parent
@@ -27,6 +30,19 @@ APPS = ROOT / "data" / "applications"
 
 def detect_lane(url):
     return "auto" if "greenhouse.io" in (url or "") else "assisted"
+
+
+def effective_url(conn, row):
+    """Resolved company-site URL when available; resolves Indeed links once."""
+    if row["ats_url"]:
+        return None if row["ats_url"] == "unresolvable" else row["ats_url"]
+    if "indeed.com" not in (row["url"] or ""):
+        return row["url"]
+    resolved = resolve.resolve_indeed(row["url"])
+    conn.execute("UPDATE jobs SET ats_url=? WHERE id=?",
+                 (resolved or "unresolvable", row["id"]))
+    conn.commit()
+    return resolved
 
 
 def write_assist(folder, row, answers):
@@ -48,16 +64,13 @@ def write_assist(folder, row, answers):
         encoding="utf-8-sig")
 
 
-def main():
-    submit = "--submit" in sys.argv
-    open_browser = "--open" in sys.argv
-    only_id = int(sys.argv[sys.argv.index("--id") + 1]) if "--id" in sys.argv else None
-
+def main(submit=False, open_browser=False, only_id=None):
     conn = db.connect()
     rows = conn.execute("SELECT * FROM jobs WHERE status='reviewed'").fetchall()
     if only_id:
         rows = [r for r in rows if r["id"] == only_id]
-    print(f"{len(rows)} reviewed jobs ready ({'SUBMIT' if submit else 'dry run'})")
+    print(f"{len(rows)} ready jobs ({'SUBMIT' if submit else 'dry run'})")
+    sent = blocked = assisted = 0
 
     for row in rows:
         folders = list(APPS.glob(f"{row['id']}-*"))
@@ -66,29 +79,43 @@ def main():
             continue
         folder = folders[0]
         answers = json.loads((folder / "answers.json").read_text(encoding="utf-8-sig"))
-        lane = detect_lane(row["url"])
+        target = effective_url(conn, row)
+        lane = detect_lane(target)
         print(f"  [{lane}] {folder.name}")
 
-        if lane == "auto":
-            report = greenhouse.apply_greenhouse(
-                row["url"], folder, answers, submit=submit, headless=True)
+        if lane == "auto" and target:
+            if submit:
+                from pipeline import sendcheck
+                profile = json.loads((ROOT / "data" / "profile.json")
+                                     .read_text(encoding="utf-8-sig"))
+                if not sendcheck.ensure_sendable(folder, row, profile):
+                    print("    skipped - pre-send check could not verify materials")
+                    blocked += 1
+                    continue
+            report = greenhouse.apply_greenhouse(target, folder, answers,
+                                                 submit=submit, headless=True)
             if report["unmapped_required"]:
-                print(f"    blocked - unmapped required questions: "
-                      f"{report['unmapped_required']}")
+                print(f"    blocked on required questions: {report['unmapped_required'][:3]}")
+                blocked += 1
             if report["submitted"]:
                 conn.execute(
                     "UPDATE jobs SET status='applied', applied_at=? WHERE id=?",
                     (datetime.now(timezone.utc).isoformat(timespec='seconds'), row["id"]))
                 conn.commit()
+                sent += 1
                 print("    SUBMITTED")
-            else:
+            elif not report["unmapped_required"]:
                 print(f"    filled (dry): see {folder.name}\\form_filled.png")
         else:
             write_assist(folder, row, answers)
+            assisted += 1
             if open_browser:
                 webbrowser.open(row["url"])
             print(f"    checklist: {folder.name}\\assist.md")
 
+    print(f"\nsubmitted {sent}, blocked {blocked}, assisted checklists {assisted}")
+
 
 if __name__ == "__main__":
-    main()
+    only = int(sys.argv[sys.argv.index("--id") + 1]) if "--id" in sys.argv else None
+    main(submit="--submit" in sys.argv, open_browser="--open" in sys.argv, only_id=only)

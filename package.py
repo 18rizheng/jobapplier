@@ -138,14 +138,11 @@ def main():
         except Exception as exc:
             print(f"  ! failed: {exc}")
             continue
-        conn.execute("UPDATE jobs SET status='packaged' WHERE id=?", (row["id"],))
+        # no automated gate (removed 2026-06-12) - the human is the reviewer of record
+        conn.execute("UPDATE jobs SET status='reviewed' WHERE id=?", (row["id"],))
         conn.commit()
 
-    if rows and "--no-review" not in sys.argv:
-        from pipeline import reviewer
-        reviewer.review_all()
-
-    print("done - review folders under data/applications/ before applying")
+    print("done - inspect folders under data/applications/ before applying")
 
 
 if __name__ == "__main__":

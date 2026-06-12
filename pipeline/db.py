@@ -45,6 +45,7 @@ MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN applied_at TEXT",
     "ALTER TABLE jobs ADD COLUMN outcome TEXT",  # response | interview | offer | rejected
     "ALTER TABLE jobs ADD COLUMN outcome_at TEXT",
+    "ALTER TABLE jobs ADD COLUMN ats_url TEXT",  # resolved company-site application URL
 ]
 
 

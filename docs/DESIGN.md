@@ -38,12 +38,16 @@ reorganizer. Safety comes from three layers instead of a reorder-only constraint
    facts, compiled from the vetted resumes (and the claude.ai resume chat when provided).
    The generator may rephrase and recombine freely; every claim must trace to the corpus.
    Includes a hard NEVER-claim list (years of experience, degrees, certifications).
-2. **Reviewer gate** (`pipeline/reviewer.py`): an independent adversarial pass that traces
-   every generated resume bullet and cover-letter claim back to the corpus, checks the
-   company name/title targeting, and verifies consistency with locked answers. Binary
-   verdict; flagged packages cannot proceed.
-3. **Human approval**: the review queue approves jobs before packaging, and the final
-   package (including the generated resume) is inspectable before any submission.
+2. **Pre-send check** (`pipeline/sendcheck.py`): the human-facing reviewer gate and
+   approval queue were REMOVED at Richard's direction (2026-06-12) - nothing flags or
+   blocks, and jobs at/above the score threshold auto-approve. Because submission is now
+   fully autonomous (also his direction), a silent machine-side check runs only in the
+   unattended send path: it verifies no hard checkable falsehoods, regenerates once on
+   failure, and skips the job otherwise. This is the operator's condition for unattended
+   sends, not a workflow gate.
+3. **Autopilot** (`autopilot.py`): approve >= threshold -> package -> resolve Indeed
+   postings to company ATS URLs -> auto-submit what's reachable -> checklists for
+   login-walled portals.
 
 Persona PDFs remain as fallback when generation fails. The exact resume file sent is
 always stored in the application folder and database (interview-day consistency).

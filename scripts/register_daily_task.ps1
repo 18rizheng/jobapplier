@@ -3,8 +3,8 @@
 
 $repo = Split-Path $PSScriptRoot -Parent
 $action = New-ScheduledTaskAction `
-    -Execute "$repo\.venv\Scripts\python.exe" `
-    -Argument "-u run_discovery.py" `
+    -Execute "powershell.exe" `
+    -Argument "-NoProfile -Command `"& '$repo\.venv\Scripts\python.exe' -u run_discovery.py; & '$repo\.venv\Scripts\python.exe' -u autopilot.py`"" `
     -WorkingDirectory $repo
 $trigger = New-ScheduledTaskTrigger -Daily -At 8:00AM
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 3)
