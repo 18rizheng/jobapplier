@@ -39,6 +39,12 @@ YES_NO = {"requires_sponsorship": "no", "work_authorization": "yes",
 STD_WORDS = ("resume", "cover letter", "first name", "last name", "email", "phone", "full name")
 
 
+def can_submit(report: dict, submit_requested: bool) -> bool:
+    """The submission gate: requires explicit intent AND zero unmapped
+    required questions. Tested directly - do not inline."""
+    return bool(submit_requested) and not report.get("unmapped_required")
+
+
 def _fill_first(page, selectors, value):
     for sel in selectors:
         loc = page.locator(sel)
@@ -198,7 +204,7 @@ def apply_greenhouse(url, folder: Path, answers: dict, submit: bool = False,
 
         page.screenshot(path=folder / "form_filled.png", full_page=True)
 
-        if submit and not report["unmapped_required"]:
+        if can_submit(report, submit):
             page.get_by_role("button", name=re.compile("submit", re.I)).first.click()
             page.wait_for_timeout(5000)
             page.screenshot(path=folder / "form_submitted.png", full_page=True)

@@ -168,7 +168,14 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
       {% for j in applied %}
       <tr><td style="font-family:var(--mono);font-size:12px">{{ (j.applied_at or '')[:10] }}</td>
           <td><span class="t">{{ j.title[:60] }}</span> <span class="sub">— {{ j.company }}</span></td>
-          <td style="font-family:var(--mono);font-size:12px">{{ j.outcome or 'awaiting' }}</td></tr>
+          <td>
+            {% if j.outcome %}<span style="font-family:var(--mono);font-size:12px">{{ j.outcome }}</span>
+            {% else %}<div class="actions">
+              <button class="btn ok" onclick="outcome({{ j.id }}, 'response')">Response</button>
+              <button class="btn ok" onclick="outcome({{ j.id }}, 'interview')">Interview</button>
+              <button class="btn no" onclick="outcome({{ j.id }}, 'rejected')">Rejected</button>
+            </div>{% endif %}
+          </td></tr>
       {% endfor %}
     </table>
     {% else %}<div class="empty">nothing submitted yet</div>{% endif %}
@@ -183,6 +190,10 @@ async function act(id, action){
     t.textContent = `job ${id} → ${action}`; t.style.display = 'block';
     setTimeout(() => location.reload(), 500);
   }
+}
+async function outcome(id, result){
+  const r = await fetch(`/api/jobs/${id}/outcome/${result}`, {method:'POST'});
+  if(r.ok) location.reload();
 }
 </script>
 </body>

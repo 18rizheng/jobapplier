@@ -91,6 +91,17 @@ def job_action(job_id, action):
     return jsonify({"ok": True, "status": transitions[action]})
 
 
+@app.route("/api/jobs/<int:job_id>/outcome/<result>", methods=["POST"])
+def job_outcome(job_id, result):
+    if result not in ("response", "interview", "offer", "rejected"):
+        abort(400)
+    conn = db.connect()
+    conn.execute("UPDATE jobs SET outcome=?, outcome_at=? WHERE id=?",
+                 (result, datetime.now(timezone.utc).isoformat(timespec="seconds"), job_id))
+    conn.commit()
+    return jsonify({"ok": True, "outcome": result})
+
+
 @app.route("/files/<int:job_id>/<path:name>")
 def job_file(job_id, name):
     folder = _folder_for(job_id)

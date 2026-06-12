@@ -132,6 +132,67 @@ def test_bullet_blocks_structure():
     assert len(blocks[1]) == 4         # skills lines
 
 
+def test_submit_gate_blocks_unmapped():
+    from pipeline.adapters.greenhouse import can_submit
+    assert can_submit({"unmapped_required": []}, True) is True
+    assert can_submit({"unmapped_required": ["Visa status?*"]}, True) is False
+    assert can_submit({"unmapped_required": []}, False) is False
+    assert can_submit({}, True) is True
+
+
+def test_never_autofill_patterns():
+    from pipeline.adapters.greenhouse import NEVER_AUTOFILL
+    for q in ("Which work authorization best describes you:", "What is your visa status?",
+              "Race/Ethnicity", "Veteran status", "Do you have a disability?",
+              "Gender identity"):
+        assert NEVER_AUTOFILL.search(q), q
+    assert not NEVER_AUTOFILL.search("Are you legally authorized to work in the US?")
+
+
+def test_detect_lane():
+    from apply import detect_lane
+    assert detect_lane("https://job-boards.greenhouse.io/x/jobs/1") == "auto"
+    assert detect_lane("https://www.indeed.com/viewjob?jk=1") == "assisted"
+    assert detect_lane(None) == "assisted"
+
+
+def test_tailor_rejects_malformed_plans(monkeypatch, tmp_path):
+    import pytest
+    from pipeline import llm, tailor
+    from pipeline.tailor import TailoredResume
+
+    def fake(prompt, schema_model, schema_note, model=None):
+        return TailoredResume(experience_bullets=["only one"], skills_lines=["a"] * 4,
+                              rationale="r")
+    monkeypatch.setattr(llm, "complete_json", fake)
+    with pytest.raises(ValueError):
+        tailor.tailor_resume({"title": "X", "company": "Y", "description": ""},
+                             tmp_path / "out.docx")
+
+    def fake2(prompt, schema_model, schema_note, model=None):
+        return TailoredResume(experience_bullets=["b"] * 8, skills_lines=["a"] * 2,
+                              rationale="r")
+    monkeypatch.setattr(llm, "complete_json", fake2)
+    with pytest.raises(ValueError):
+        tailor.tailor_resume({"title": "X", "company": "Y", "description": ""},
+                             tmp_path / "out.docx")
+
+
+def test_remediate_issue_parsing(tmp_path):
+    from remediate import issues_from_review
+    (tmp_path / "review.md").write_text(
+        "# Pre-flight review: FLAG\n\n## Blocking issues\n- issue one\n- issue two\n\n"
+        "## Notes\n- a note that must not be picked up\n", encoding="utf-8-sig")
+    assert issues_from_review(tmp_path) == ["issue one", "issue two"]
+
+
+def test_discover_ats_survives_bad_org():
+    from pipeline.discovery import discover_ats
+    jobs = discover_ats({"greenhouse_boards": ["this-board-does-not-exist-xyz"],
+                         "lever_orgs": [], "ashby_orgs": []})
+    assert jobs == []
+
+
 def test_write_block_shrink_and_grow(tmp_path):
     from pipeline.tailor import _bullet_blocks, _write_block
     doc = _template_doc()
