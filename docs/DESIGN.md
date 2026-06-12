@@ -28,6 +28,16 @@ Agreed 2026-06-11. The original concept was: three resumes in, find 100 jobs pay
 | Apply (assisted lane) | Claude in Chrome; Workday navigation patterns referenced from proficiently-claude-skills |
 | Tracker | SQLite outcomes + inbox scanning (concept from jobpilot's /scan-inbox) for replies and verification codes; feeds response rates by persona/source/score-band back into scoring |
 
+## Resume tailoring rule (agreed 2026-06-11)
+
+Hybrid of static personas and per-job tailoring, gated by LLM fit score:
+
+- **Score ≥ 7 ("clear apply"):** render a tailored variant from the general docx template. Tailoring may ONLY reorder experience bullets, reorder the skills section, and choose between pre-approved framing variants of the same fact. Every sentence must exist in the vetted bullet pool — no new claims, ever. The review queue shows a diff against the base.
+- **Score 5–7:** send the matching persona PDF as-is; the extra review burden isn't justified.
+- **Always:** store the exact resume file sent in the per-job application folder and the database, so it's known precisely what each company saw (interview-day consistency).
+
+Rationale: the personas already capture the big win (matching the resume's frame to the job family); full per-job regeneration creates unreviewable variants and drift risk. Constrained reordering captures the remaining keyword/emphasis benefit at near-zero risk.
+
 ## Answer bank
 
 Screening questions repeat (sponsorship, relocation, start date, "why us"). Canonical answers written once by the user, lightly adapted per job. Demographic/EEO questions are fixed user choices, never model-generated.

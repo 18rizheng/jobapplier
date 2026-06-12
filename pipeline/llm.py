@@ -95,41 +95,60 @@ Respond with ONLY a JSON object, no markdown fences, matching exactly:
 "knockout_risks": [<strings>], "reason": "<1-2 sentences>"}"""
 
 
-def _assess_sdk(prompt, model):
-    import anthropic
-
-    client = anthropic.Anthropic()
-    response = client.messages.parse(
-        model=model,
-        max_tokens=4000,
-        thinking={"type": "adaptive"},
-        messages=[{"role": "user", "content": prompt}],
-        output_format=JobAssessment,
-    )
-    return response.parsed_output
-
-
-def _assess_cli(prompt, model):
+def _run_cli(prompt, model):
     exe = shutil.which("claude")
     if not exe:
         raise RuntimeError("no ANTHROPIC_API_KEY and no claude CLI on PATH")
     # prompt goes via stdin: Windows argv is capped at ~8K chars
     result = subprocess.run(
         [exe, "-p", "--model", model],
-        input=prompt + _JSON_SCHEMA_NOTE,
+        input=prompt,
         capture_output=True, text=True, timeout=300, encoding="utf-8", errors="replace",
     )
     if result.returncode != 0:
         raise RuntimeError(f"claude CLI failed: {result.stderr[:500]}")
-    match = re.search(r"\{.*\}", result.stdout, re.DOTALL)
+    return result.stdout
+
+
+def complete_json(prompt, schema_model, schema_note, model=DEFAULT_MODEL):
+    """Run a prompt expecting a structured response validated by `schema_model`.
+    `schema_note` is the JSON-shape instruction appended on the CLI path
+    (the SDK path enforces the schema natively via structured outputs)."""
+    _load_dotenv()
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        import anthropic
+
+        client = anthropic.Anthropic()
+        response = client.messages.parse(
+            model=model,
+            max_tokens=4000,
+            thinking={"type": "adaptive"},
+            messages=[{"role": "user", "content": prompt}],
+            output_format=schema_model,
+        )
+        return response.parsed_output
+    out = _run_cli(prompt + schema_note, model)
+    match = re.search(r"\{.*\}", out, re.DOTALL)
     if not match:
-        raise RuntimeError(f"no JSON in CLI output: {result.stdout[:300]}")
-    return JobAssessment.model_validate(json.loads(match.group(0)))
+        raise RuntimeError(f"no JSON in CLI output: {out[:300]}")
+    return schema_model.model_validate(json.loads(match.group(0)))
+
+
+def complete_text(prompt, model=DEFAULT_MODEL):
+    _load_dotenv()
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        import anthropic
+
+        client = anthropic.Anthropic()
+        response = client.messages.create(
+            model=model,
+            max_tokens=4000,
+            thinking={"type": "adaptive"},
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return next(b.text for b in response.content if b.type == "text")
+    return _run_cli(prompt, model)
 
 
 def assess_job(job: dict, profile: dict, model: str = DEFAULT_MODEL) -> JobAssessment:
-    _load_dotenv()
-    prompt = _build_prompt(job, profile)
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return _assess_sdk(prompt, model)
-    return _assess_cli(prompt, model)
+    return complete_json(_build_prompt(job, profile), JobAssessment, _JSON_SCHEMA_NOTE, model)
