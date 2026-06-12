@@ -41,7 +41,8 @@ def dashboard():
     queue = [dict(r) for r in conn.execute(
         """SELECT * FROM jobs WHERE status='scored'
            AND COALESCE(llm_score, fit_score) >= 5
-           ORDER BY llm_score IS NULL, COALESCE(llm_score, fit_score) DESC
+           ORDER BY llm_score IS NULL, COALESCE(llm_score, fit_score) DESC,
+                    date_posted DESC
            LIMIT 60""")]
     from pipeline.scoring import posting_age_days
     for job in queue:

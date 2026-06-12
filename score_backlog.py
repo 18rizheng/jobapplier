@@ -16,7 +16,8 @@ def main():
     conn = db.connect()
     rows = conn.execute(
         """SELECT * FROM jobs WHERE status='scored' AND llm_score IS NULL
-           ORDER BY fit_score DESC LIMIT ?""", (N,)).fetchall()
+           ORDER BY (source LIKE 'greenhouse%' OR source LIKE 'lever%') DESC,
+                    fit_score DESC, date_posted DESC LIMIT ?""", (N,)).fetchall()
     print(f"scoring {len(rows)} backlog jobs")
     for i, row in enumerate(rows, 1):
         try:
