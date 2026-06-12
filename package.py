@@ -62,11 +62,23 @@ def pick_resume(row, profile, folder, score):
     return dest
 
 
+def clean_letter(text):
+    """Strip LLM chatter: preamble lines, --- separators, trailing commentary."""
+    parts = re.split(r"^---\s*$", text, flags=re.MULTILINE)
+    if len(parts) >= 3:
+        text = parts[1]
+    lines = text.strip().splitlines()
+    if lines and lines[0].strip().endswith(":") and len(lines[0]) < 80:
+        lines = lines[1:]
+    return "\n".join(lines).strip() + "\n"
+
+
 def write_cover_letter(folder, row, profile):
     prompt = f"""Write a cover letter for this application. 150-200 words, three short
 paragraphs, plain confident tone. No "I am writing to express", no flattery, no
 fabrication - only facts from the background below. Name 1-2 specific overlaps
-between the background and the posting. Output ONLY the letter body, no header.
+between the background and the posting. Output ONLY the letter body - no header,
+no preamble like "Here's the letter", no separators, no commentary after.
 
 BACKGROUND:
 Quality Manager on Epic Systems' EDI team since Sept 2022. Owns end-to-end QA for
@@ -81,8 +93,8 @@ Title: {row['title']}
 Company: {row['company']}
 Description:
 {(row['description'] or '')[:4000]}"""
-    letter = llm.complete_text(prompt).strip()
-    (folder / "cover_letter.md").write_text(letter + "\n", encoding="utf-8-sig")
+    letter = clean_letter(llm.complete_text(prompt))
+    (folder / "cover_letter.md").write_text(letter, encoding="utf-8-sig")
 
 
 def write_answers(folder, row, profile, resume_path):
