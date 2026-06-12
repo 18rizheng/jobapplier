@@ -55,7 +55,8 @@ Search terms, boards, and ATS company lists live in [config/searches.json](confi
 - [x] Design (2026-06-11) — see [docs/DESIGN.md](docs/DESIGN.md)
 - [x] Master profile parsed from three resumes (persona-tagged bullets, answer bank)
 - [x] Phase 1: discovery (JobSpy + Greenhouse/Lever/Ashby pollers) → SQLite ingest/dedup → heuristic scoring → ranked list. Verified live: 60 postings, 51 new, real $100k+ matches ranked.
-- [ ] LLM scoring (Claude reads full description vs persona; salary estimation for unlisted)
-- [ ] Answer bank completion (sponsorship, salary expectation, remote/relocation — user input)
+- [x] LLM scoring: Claude reads the full description vs the profile — fit 0–10, salary estimation for unlisted postings, knockout-risk detection. Backends: Anthropic SDK (`ANTHROPIC_API_KEY` in `.env`) or `claude` CLI fallback. Verified live: correctly demoted a 9.0-heuristic job to 4.0 over an explicit 6+ years requirement.
+- [x] Search expanded to 16 major metros + remote (willing to relocate)
+- [x] Answer bank locked: no sponsorship needed, relocating OK, start July 1 2026 (why-leaving paragraph and EEO choices still TODO)
 - [ ] Phase 2: prefill + review queue
 - [ ] Phase 3: auto-submit adapters (Greenhouse → Lever → Ashby)

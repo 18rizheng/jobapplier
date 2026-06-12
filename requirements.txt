@@ -4,6 +4,7 @@
 #   pip install -r requirements.txt
 #   pip install python-jobspy --no-deps
 #
+anthropic
 numpy
 pandas
 requests

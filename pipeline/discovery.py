@@ -17,20 +17,24 @@ def _annualize(amount, interval):
     return float(amount) * factor
 
 
-def discover_jobspy(terms, sites, location="United States", is_remote=True,
-                    hours_old=168, results_wanted=25):
-    """Scrape job boards anonymously via JobSpy. No accounts, no login."""
+def discover_jobspy(terms, sites, locations=("Remote",), hours_old=168, results_wanted=15):
+    """Scrape job boards anonymously via JobSpy, sweeping every term across
+    every configured metro (plus remote). No accounts, no login."""
     from jobspy import scrape_jobs  # deferred: heavy import
 
     jobs = []
-    for term in terms:
+    searches = [(term, loc) for term in terms for loc in locations]
+    for i, (term, loc) in enumerate(searches, 1):
+        remote = loc.lower() == "remote"
+        print(f"  [{i}/{len(searches)}] {term} @ {loc}")
         try:
             df = scrape_jobs(
-                site_name=list(sites), search_term=term, location=location,
-                is_remote=is_remote, hours_old=hours_old, results_wanted=results_wanted,
+                site_name=list(sites), search_term=term,
+                location="United States" if remote else loc,
+                is_remote=remote, hours_old=hours_old, results_wanted=results_wanted,
             )
-        except Exception as exc:  # one board failing should not sink the run
-            print(f"  ! jobspy failed for {term!r}: {exc}")
+        except Exception as exc:  # one search failing should not sink the run
+            print(f"  ! jobspy failed for {term!r} @ {loc!r}: {exc}")
             continue
         for row in df.to_dict("records"):
             yearly_min = _annualize(row.get("min_amount"), row.get("interval"))

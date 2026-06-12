@@ -22,10 +22,9 @@ def main():
     if "--skip-jobspy" not in sys.argv:
         js = cfg["jobspy"]
         terms = [t for persona_terms in js["terms"].values() for t in persona_terms]
-        print(f"jobspy: {len(terms)} terms across {js['sites']} ...")
+        print(f"jobspy: {len(terms)} terms x {len(js['locations'])} locations on {js['sites']}")
         found += discovery.discover_jobspy(
-            terms, js["sites"], js["location"], js["is_remote"],
-            js["hours_old"], js["results_wanted"])
+            terms, js["sites"], js["locations"], js["hours_old"], js["results_wanted"])
     ats_jobs = discovery.discover_ats(cfg["ats"])
     if ats_jobs:
         print(f"ats endpoints: {len(ats_jobs)} postings")
@@ -49,10 +48,37 @@ def main():
     conn.commit()
     print(f"scored {len(rows)} new jobs")
 
+    llm_cfg = cfg.get("llm_scoring", {})
+    if llm_cfg.get("enabled") and "--skip-llm" not in sys.argv:
+        from pipeline import llm
+
+        candidates = conn.execute(
+            """SELECT * FROM jobs WHERE status = 'scored' AND llm_score IS NULL
+               AND fit_score >= ? ORDER BY fit_score DESC LIMIT ?""",
+            (llm_cfg.get("heuristic_threshold", 4.0),
+             llm_cfg.get("max_jobs_per_run", 30))).fetchall()
+        print(f"== llm scoring ({len(candidates)} candidates) ==")
+        for i, row in enumerate(candidates, 1):
+            try:
+                a = llm.assess_job(dict(row), profile, llm_cfg.get("model", llm.DEFAULT_MODEL))
+            except Exception as exc:
+                print(f"  ! [{i}/{len(candidates)}] {row['title'][:40]}: {exc}")
+                continue
+            status = "scored" if a.meets_salary_floor else "rejected"
+            conn.execute(
+                """UPDATE jobs SET llm_score=?, llm_reason=?, llm_salary_estimate=?,
+                       knockout_risks=?, persona=?, status=? WHERE id=?""",
+                (a.fit_score, a.reason, a.salary_estimate_usd,
+                 json.dumps(a.knockout_risks), a.persona, status, row["id"]))
+            conn.commit()
+            print(f"  [{i}/{len(candidates)}] {a.fit_score:>4} {row['title'][:44]:<44} {a.persona}")
+
     ranked = conn.execute(
-        """SELECT title, company, location, salary_yearly_min, persona, fit_score,
-                  score_reason, url, source
-           FROM jobs WHERE status = 'scored' ORDER BY fit_score DESC LIMIT 50""").fetchall()
+        """SELECT title, company, location, salary_yearly_min, persona,
+                  COALESCE(llm_score, fit_score) AS fit_score,
+                  COALESCE(llm_reason, score_reason) AS score_reason, url, source
+           FROM jobs WHERE status = 'scored'
+           ORDER BY llm_score IS NULL, fit_score DESC LIMIT 50""").fetchall()
 
     out = ROOT / "data" / "ranked_latest.csv"
     with out.open("w", newline="", encoding="utf-8") as f:

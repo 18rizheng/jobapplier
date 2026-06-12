@@ -1,34 +1,40 @@
-﻿{
-    "jobspy":  {
-                   "sites":  [
-                                 "indeed"
-                             ],
-                   "location":  "United States",
-                   "is_remote":  true,
-                   "hours_old":  168,
-                   "results_wanted":  10,
-                   "terms":  {
-                                 "technical":  [
-                                                   "QA Automation Engineer",
-                                                   "SDET",
-                                                   "Software Quality Engineer"
-                                               ],
-                                 "analyst_pm":  [
-                                                    "Business Analyst",
-                                                    "Technical Project Manager",
-                                                    "Implementation Project Manager"
-                                                ]
-                             }
-               },
-    "ats":  {
-                "greenhouse_boards":  [
-
-                                      ],
-                "lever_orgs":  [
-
-                               ],
-                "ashby_orgs":  [
-
-                               ]
-            }
+{
+  "jobspy": {
+    "sites": ["indeed"],
+    "results_wanted": 15,
+    "hours_old": 168,
+    "locations": [
+      "Remote",
+      "New York, NY",
+      "San Francisco Bay Area, CA",
+      "Seattle, WA",
+      "Chicago, IL",
+      "Boston, MA",
+      "Austin, TX",
+      "Dallas-Fort Worth, TX",
+      "Los Angeles, CA",
+      "Denver, CO",
+      "Atlanta, GA",
+      "Washington, DC",
+      "Minneapolis, MN",
+      "Madison, WI",
+      "Raleigh-Durham, NC",
+      "Philadelphia, PA"
+    ],
+    "terms": {
+      "technical": ["QA Automation Engineer", "SDET", "Software Quality Engineer"],
+      "analyst_pm": ["Business Analyst", "Technical Project Manager", "Implementation Project Manager"]
+    }
+  },
+  "ats": {
+    "greenhouse_boards": [],
+    "lever_orgs": [],
+    "ashby_orgs": []
+  },
+  "llm_scoring": {
+    "enabled": true,
+    "heuristic_threshold": 4.0,
+    "max_jobs_per_run": 30,
+    "model": "claude-opus-4-8"
+  }
 }
