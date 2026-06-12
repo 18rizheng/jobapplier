@@ -101,12 +101,19 @@ def _write_block(paragraphs, lines):
         _set_text(paragraph, line)
 
 
-def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL) -> TailoredResume:
-    """Write a regenerated resume docx to out_path. Returns the plan."""
+def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
+                  avoid_issues: list[str] | None = None) -> TailoredResume:
+    """Write a regenerated resume docx to out_path. Returns the plan.
+    avoid_issues: reviewer findings from a prior attempt - hard constraints now."""
     from docx import Document
 
     facts = FACTS.read_text(encoding="utf-8-sig")
-    plan = llm.complete_json(_build_prompt(job, facts), TailoredResume, _SCHEMA_NOTE, model)
+    prompt = _build_prompt(job, facts)
+    if avoid_issues:
+        prompt += ("\n\nA previous attempt was REJECTED by the fabrication reviewer for "
+                   "the violations below. Do not repeat them or introduce equivalents:\n"
+                   + "\n".join(f"- {i}" for i in avoid_issues))
+    plan = llm.complete_json(prompt, TailoredResume, _SCHEMA_NOTE, model)
 
     if not (7 <= len(plan.experience_bullets) <= 9):
         raise ValueError(f"expected 7-9 experience bullets, got {len(plan.experience_bullets)}")
