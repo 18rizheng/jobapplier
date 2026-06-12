@@ -122,7 +122,7 @@ def main():
         folder = APPS / f"{row['id']}-{slugify(row['company'])}"
         folder.mkdir(parents=True, exist_ok=True)
         score = row["llm_score"] if row["llm_score"] is not None else row["fit_score"]
-        print(f"  {folder.name} (score {score}{', tailoring' if score >= TAILOR_THRESHOLD else ''})")
+        print(f"  {folder.name} (score {score})")
         try:
             write_job_md(folder, row)
             resume_path = pick_resume(row, profile, folder, score)
