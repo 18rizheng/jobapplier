@@ -30,9 +30,14 @@ def detect_lane(url):
 
 
 def write_assist(folder, row, answers):
+    from urllib.parse import quote
     locked = "\n".join(f"- {k}: {v}" for k, v in answers["answers"].items())
+    referral = ("https://www.linkedin.com/search/results/people/?keywords="
+                + quote(row["company"] or ""))
     (folder / "assist.md").write_text(
         f"# Assisted application: {row['title']} - {row['company']}\n\n"
+        f"0. BEFORE applying, check for connections (referrals beat every other channel):\n"
+        f"   {referral}\n"
         f"1. Open: {row['url']}\n"
         f"2. Attach: {answers['resume_file']} (in this folder)\n"
         f"3. Cover letter: cover_letter.md (in this folder)\n"

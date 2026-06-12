@@ -134,11 +134,18 @@ def complete_json(prompt, schema_model, schema_note, model=DEFAULT_MODEL):
             output_format=schema_model,
         )
         return response.parsed_output
-    out = _run_cli(prompt + schema_note, model)
-    match = re.search(r"\{.*\}", out, re.DOTALL)
-    if not match:
-        raise RuntimeError(f"no JSON in CLI output: {out[:300]}")
-    return schema_model.model_validate(json.loads(match.group(0)))
+    last_error = None
+    for _ in range(2):  # malformed JSON from the CLI is transient - one re-ask
+        out = _run_cli(prompt + schema_note, model)
+        match = re.search(r"\{.*\}", out, re.DOTALL)
+        if not match:
+            last_error = RuntimeError(f"no JSON in CLI output: {out[:300]}")
+            continue
+        try:
+            return schema_model.model_validate(json.loads(match.group(0)))
+        except Exception as exc:
+            last_error = exc
+    raise last_error
 
 
 def complete_text(prompt, model=DEFAULT_MODEL):

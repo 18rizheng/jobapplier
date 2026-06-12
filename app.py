@@ -5,8 +5,9 @@ Run:  .venv\\Scripts\\python app.py   ->  http://localhost:5713
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 from flask import Flask, abort, jsonify, render_template, request, send_from_directory
 
@@ -70,11 +71,17 @@ def dashboard():
 
     applied = [dict(r) for r in conn.execute(
         "SELECT * FROM jobs WHERE applied_at IS NOT NULL ORDER BY applied_at DESC LIMIT 30")]
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat(timespec="seconds")
+    followups = [j for j in applied if j["outcome"] is None and (j["applied_at"] or "") < cutoff]
+    for job in followups:
+        job["linkedin_search"] = ("https://www.linkedin.com/search/results/people/?keywords="
+                                  + quote(job["company"] or ""))
 
     return render_template(
         "dashboard.html",
         counts=counts, total=total, queue=queue, packages=packages,
-        applied=applied, now=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
+        applied=applied, followups=followups,
+        now=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
 
 
 @app.route("/api/jobs/<int:job_id>/<action>", methods=["POST"])

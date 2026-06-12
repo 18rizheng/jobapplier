@@ -162,6 +162,21 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
       {% endfor %}
     </div>
 
+    {% if followups %}
+    <h2>Follow-ups due <span class="count" style="background:var(--red);color:#fff">{{ followups|length }}</span><span class="rule"></span></h2>
+    <table>
+      <tr><th>applied</th><th>role</th><th>do this</th></tr>
+      {% for j in followups %}
+      <tr><td style="font-family:var(--mono);font-size:12px">{{ (j.applied_at or '')[:10] }}</td>
+          <td><span class="t">{{ j.title[:55] }}</span> <span class="sub">— {{ j.company }}</span></td>
+          <td><div class="actions">
+            <a class="btn" href="{{ j.linkedin_search }}" target="_blank">Find connections</a>
+            <a class="btn" href="{{ j.url }}" target="_blank">Posting</a>
+          </div></td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+
     <h2>Applied <span class="count">{{ applied|length }}</span><span class="rule"></span></h2>
     {% if applied %}
     <table>
