@@ -32,16 +32,22 @@ def discover_jobspy(terms, sites, locations=("Remote",), hours_old=168, results_
     for i, (term, loc) in enumerate(searches, 1):
         remote = loc.lower() == "remote"
         print(f"  [{i}/{len(searches)}] {term} @ {loc}")
-        try:
-            df = scrape_jobs(
-                site_name=list(sites), search_term=term,
-                location="United States" if remote else loc,
-                is_remote=remote, hours_old=hours_old, results_wanted=results_wanted,
-            )
-        except Exception as exc:  # one search failing should not sink the run
-            print(f"  ! jobspy failed for {term!r} @ {loc!r}: {exc}")
-            continue
-        for row in df.to_dict("records"):
+        rows = []
+        # boards differ in reliability/rate-limits; query each independently so
+        # one bot-walling (LinkedIn) doesn't drop the others' results
+        for site in sites:
+            try:
+                df = scrape_jobs(
+                    site_name=[site], search_term=term,
+                    location="United States" if remote else loc,
+                    is_remote=remote, hours_old=hours_old,
+                    results_wanted=results_wanted,
+                    linkedin_fetch_description=(site == "linkedin"),
+                )
+                rows.extend(df.to_dict("records"))
+            except Exception as exc:
+                print(f"  ! {site} failed for {term!r} @ {loc!r}: {str(exc)[:80]}")
+        for row in rows:
             yearly_min = _annualize(row.get("min_amount"), row.get("interval"))
             jobs.append({
                 "title": _s(row.get("title")),

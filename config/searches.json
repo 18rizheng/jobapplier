@@ -1,6 +1,6 @@
 {
   "jobspy": {
-    "sites": ["indeed"],
+    "sites": ["indeed", "linkedin", "zip_recruiter", "glassdoor", "google"],
     "results_wanted": 15,
     "hours_old": 72,
     "locations": [
@@ -27,7 +27,8 @@
     }
   },
   "ats": {
-    "greenhouse_boards": ["gitlab", "datadog", "stripe", "cloudflare", "doximity", "flatironhealth", "zocdoc"],
+    "greenhouse_boards": ["gitlab", "datadog", "stripe", "cloudflare", "doximity", "flatironhealth", "zocdoc",
+                          "truveta", "garnerhealth", "qventus", "transcarent", "healthverity"],
     "lever_orgs": ["plaid"],
     "ashby_orgs": []
   },

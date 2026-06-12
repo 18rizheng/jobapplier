@@ -52,6 +52,17 @@ def dashboard():
             job["risks"] = []
         job["age_days"] = posting_age_days(job.get("date_posted"))
 
+    awaiting = []
+    for r in conn.execute(
+            "SELECT * FROM jobs WHERE status='awaiting_send' ORDER BY COALESCE(llm_score, fit_score) DESC"):
+        job = dict(r)
+        folder = _folder_for(job["id"])
+        if folder:
+            job["folder"] = folder.name
+            job["has_preview"] = (folder / "form_filled.png").exists()
+            job["cover_letter"] = _read(folder, "cover_letter.md", 4000)
+        awaiting.append(job)
+
     packages = []
     for r in conn.execute(
             """SELECT * FROM jobs WHERE status IN ('reviewed','flagged','packaged','queued','applied')
@@ -78,10 +89,13 @@ def dashboard():
         job["linkedin_search"] = ("https://www.linkedin.com/search/results/people/?keywords="
                                   + quote(job["company"] or ""))
 
+    approved_sends = db.approved_send_count(conn)
     return render_template(
         "dashboard.html",
         counts=counts, total=total, queue=queue, packages=packages,
-        applied=applied, followups=followups,
+        applied=applied, followups=followups, awaiting=awaiting,
+        approved_sends=approved_sends, probation=db.PROBATION_SENDS,
+        autonomous=db.autonomy_unlocked(conn),
         now=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
 
 
@@ -99,6 +113,18 @@ def job_action(job_id, action):
         conn.execute("UPDATE jobs SET status=? WHERE id=?", (transitions[action], job_id))
     conn.commit()
     return jsonify({"ok": True, "status": transitions[action]})
+
+
+@app.route("/api/jobs/<int:job_id>/send", methods=["POST"])
+def job_send(job_id):
+    """Human approves a held application: mark approved and actually submit it."""
+    conn = db.connect()
+    conn.execute("UPDATE jobs SET send_approved=1, status='reviewed' WHERE id=?", (job_id,))
+    conn.commit()
+    import apply as apply_mod
+    apply_mod.main(submit=True, only_id=job_id)
+    row = conn.execute("SELECT status FROM jobs WHERE id=?", (job_id,)).fetchone()
+    return jsonify({"ok": True, "status": row["status"]})
 
 
 @app.route("/api/jobs/<int:job_id>/outcome/<result>", methods=["POST"])

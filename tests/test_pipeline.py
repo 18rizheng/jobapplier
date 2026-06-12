@@ -233,6 +233,30 @@ def test_tailor_rejects_malformed_plans(monkeypatch, tmp_path):
                              tmp_path / "out.docx")
 
 
+def test_autonomy_gate(tmp_path, monkeypatch):
+    import sqlite3
+    from pipeline import db as dbmod
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(dbmod.SCHEMA)
+    for m in dbmod.MIGRATIONS:
+        try:
+            conn.execute(m)
+        except sqlite3.OperationalError:
+            pass
+    assert dbmod.approved_send_count(conn) == 0
+    assert dbmod.autonomy_unlocked(conn) is False
+    now = "2026-06-12T00:00:00"
+    for i in range(dbmod.PROBATION_SENDS):
+        conn.execute(
+            "INSERT INTO jobs (dedup_hash, title, company, status, send_approved, "
+            "first_seen, last_seen) VALUES (?,?,?,?,?,?,?)",
+            (f"h{i}", "t", "c", "applied", 1, now, now))
+    conn.commit()
+    assert dbmod.approved_send_count(conn) == dbmod.PROBATION_SENDS
+    assert dbmod.autonomy_unlocked(conn) is True
+
+
 def test_discover_ats_survives_bad_org():
     from pipeline.discovery import discover_ats
     jobs = discover_ats({"greenhouse_boards": ["this-board-does-not-exist-xyz"],

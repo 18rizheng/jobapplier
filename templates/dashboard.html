@@ -108,6 +108,37 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
   </aside>
 
   <main>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <span class="badge {{ 'b-app' if autonomous else 'b-flag' }}" style="font-size:11px;padding:4px 10px">
+        {{ 'AUTONOMOUS SENDING' if autonomous else 'PROBATION · approve each send' }}</span>
+      <span style="font:500 11px var(--mono);color:var(--dim)">
+        {{ approved_sends }}/{{ probation }} approved sends — {{ 'autonomy unlocked' if autonomous else (probation - approved_sends)|string + ' more to unlock autonomy' }}</span>
+    </div>
+
+    {% if awaiting %}
+    <h2 style="color:var(--amber)">Awaiting your send <span class="count">{{ awaiting|length }}</span><span class="rule"></span></h2>
+    <div class="cards">
+      {% for j in awaiting %}
+      <div class="card flag">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <h3>{{ j.title[:60] }}</h3><span class="badge b-flag">ready to send</span>
+        </div>
+        <div class="co">{{ j.company }} · {{ '%.0f'|format(j.llm_score if j.llm_score is not none else j.fit_score) }}/10</div>
+        <div class="files">
+          {% if j.has_preview %}<a href="/files/{{ j.id }}/form_filled.png" target="_blank">▣ filled form preview</a>{% endif %}
+          {% for f in ['resume_tailored.pdf','cover_letter.md'] %}<a href="/files/{{ j.id }}/{{ f }}" target="_blank">{{ f }}</a>{% endfor %}
+        </div>
+        {% if j.cover_letter %}<details><summary>cover letter</summary><pre>{{ j.cover_letter }}</pre></details>{% endif %}
+        <div class="actions" style="margin-top:10px">
+          <button class="btn ok" style="border-color:var(--amber);color:var(--amber)" onclick="send({{ j.id }})">Approve &amp; SEND</button>
+          <button class="btn no" onclick="act({{ j.id }}, 'reject')">Reject</button>
+          <a class="btn" href="{{ j.url }}" target="_blank">Post</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <h2>Review queue <span class="count">{{ queue|length }}</span><span class="rule"></span></h2>
     {% if queue %}
     <table>
@@ -210,6 +241,15 @@ async function act(id, action){
 async function outcome(id, result){
   const r = await fetch(`/api/jobs/${id}/outcome/${result}`, {method:'POST'});
   if(r.ok) location.reload();
+}
+async function send(id){
+  if(!confirm('Submit this application to the employer now?')) return;
+  const t = document.getElementById('toast');
+  t.textContent = `sending job ${id}…`; t.style.display = 'block';
+  const r = await fetch(`/api/jobs/${id}/send`, {method:'POST'});
+  const d = await r.json();
+  t.textContent = `job ${id} → ${d.status}`;
+  setTimeout(() => location.reload(), 900);
 }
 </script>
 </body>

@@ -69,8 +69,10 @@ def main(submit=False, open_browser=False, only_id=None):
     rows = conn.execute("SELECT * FROM jobs WHERE status='reviewed'").fetchall()
     if only_id:
         rows = [r for r in rows if r["id"] == only_id]
-    print(f"{len(rows)} ready jobs ({'SUBMIT' if submit else 'dry run'})")
-    sent = blocked = assisted = 0
+    mode = ("AUTONOMOUS" if db.autonomy_unlocked(conn) else
+            f"PROBATION {db.approved_send_count(conn)}/{db.PROBATION_SENDS}") if submit else "dry run"
+    print(f"{len(rows)} ready jobs ({mode})")
+    sent = blocked = assisted = held = 0
 
     for row in rows:
         folders = list(APPS.glob(f"{row['id']}-*"))
@@ -84,7 +86,12 @@ def main(submit=False, open_browser=False, only_id=None):
         print(f"  [{lane}] {folder.name}")
 
         if lane == "auto" and target:
-            if submit:
+            really_submit = submit
+            # Probation: until PROBATION_SENDS human-approved sends succeed, the
+            # autopilot prepares the form but holds for explicit approval per send.
+            if submit and not db.autonomy_unlocked(conn) and not row["send_approved"]:
+                really_submit = False
+            if really_submit:
                 from pipeline import sendcheck
                 profile = json.loads((ROOT / "data" / "profile.json")
                                      .read_text(encoding="utf-8-sig"))
@@ -93,18 +100,24 @@ def main(submit=False, open_browser=False, only_id=None):
                     blocked += 1
                     continue
             report = greenhouse.apply_greenhouse(target, folder, answers,
-                                                 submit=submit, headless=True)
+                                                 submit=really_submit, headless=True)
             if report["unmapped_required"]:
                 print(f"    blocked on required questions: {report['unmapped_required'][:3]}")
                 blocked += 1
-            if report["submitted"]:
+            elif report["submitted"]:
                 conn.execute(
                     "UPDATE jobs SET status='applied', applied_at=? WHERE id=?",
                     (datetime.now(timezone.utc).isoformat(timespec='seconds'), row["id"]))
                 conn.commit()
                 sent += 1
                 print("    SUBMITTED")
-            elif not report["unmapped_required"]:
+            elif submit and not really_submit:
+                conn.execute("UPDATE jobs SET status='awaiting_send' WHERE id=?", (row["id"],))
+                conn.commit()
+                held += 1
+                print(f"    HELD for approval (probation {db.approved_send_count(conn)}/"
+                      f"{db.PROBATION_SENDS}) - form preview: {folder.name}\\form_filled.png")
+            else:
                 print(f"    filled (dry): see {folder.name}\\form_filled.png")
         else:
             write_assist(folder, row, answers)
@@ -113,7 +126,8 @@ def main(submit=False, open_browser=False, only_id=None):
                 webbrowser.open(row["url"])
             print(f"    checklist: {folder.name}\\assist.md")
 
-    print(f"\nsubmitted {sent}, blocked {blocked}, assisted checklists {assisted}")
+    print(f"\nsubmitted {sent}, held for approval {held}, "
+          f"blocked {blocked}, assisted checklists {assisted}")
 
 
 if __name__ == "__main__":

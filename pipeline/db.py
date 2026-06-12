@@ -46,7 +46,19 @@ MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN outcome TEXT",  # response | interview | offer | rejected
     "ALTER TABLE jobs ADD COLUMN outcome_at TEXT",
     "ALTER TABLE jobs ADD COLUMN ats_url TEXT",  # resolved company-site application URL
+    "ALTER TABLE jobs ADD COLUMN send_approved INTEGER DEFAULT 0",  # human OK'd this send
 ]
+
+PROBATION_SENDS = 20  # human approves each send until this many succeed; then autonomous
+
+
+def approved_send_count(conn) -> int:
+    return conn.execute(
+        "SELECT COUNT(*) c FROM jobs WHERE status='applied' AND send_approved=1").fetchone()["c"]
+
+
+def autonomy_unlocked(conn) -> bool:
+    return approved_send_count(conn) >= PROBATION_SENDS
 
 
 def connect() -> sqlite3.Connection:
