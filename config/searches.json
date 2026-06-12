@@ -1,0 +1,34 @@
+﻿{
+    "jobspy":  {
+                   "sites":  [
+                                 "indeed"
+                             ],
+                   "location":  "United States",
+                   "is_remote":  true,
+                   "hours_old":  168,
+                   "results_wanted":  10,
+                   "terms":  {
+                                 "technical":  [
+                                                   "QA Automation Engineer",
+                                                   "SDET",
+                                                   "Software Quality Engineer"
+                                               ],
+                                 "analyst_pm":  [
+                                                    "Business Analyst",
+                                                    "Technical Project Manager",
+                                                    "Implementation Project Manager"
+                                                ]
+                             }
+               },
+    "ats":  {
+                "greenhouse_boards":  [
+
+                                      ],
+                "lever_orgs":  [
+
+                               ],
+                "ashby_orgs":  [
+
+                               ]
+            }
+}

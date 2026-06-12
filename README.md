@@ -32,6 +32,30 @@ Targeted career pages ─────────────┘        (SQLite)
 3. No application is submitted without explicit batch approval.
 4. Resume files, `profile.json`, and the SQLite database stay out of git (see `.gitignore`).
 
+## Setup
+
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\pip install python-jobspy --no-deps   # its numpy pin breaks Python 3.13+
+```
+
+Requires `data/profile.json` (see [docs/profile.example.json](docs/profile.example.json)) and resume PDFs in `data/resumes/` — both gitignored, never committed.
+
+## Run
+
+```powershell
+.venv\Scripts\python run_discovery.py        # discover -> dedup -> score -> ranked list
+```
+
+Search terms, boards, and ATS company lists live in [config/searches.json](config/searches.json). Output: console top-20 plus `data/ranked_latest.csv`.
+
 ## Status
 
-Design phase complete (2026-06-11). Next milestone: parse resumes into master profile, JobSpy discovery + scoring producing a ranked daily list.
+- [x] Design (2026-06-11) — see [docs/DESIGN.md](docs/DESIGN.md)
+- [x] Master profile parsed from three resumes (persona-tagged bullets, answer bank)
+- [x] Phase 1: discovery (JobSpy + Greenhouse/Lever/Ashby pollers) → SQLite ingest/dedup → heuristic scoring → ranked list. Verified live: 60 postings, 51 new, real $100k+ matches ranked.
+- [ ] LLM scoring (Claude reads full description vs persona; salary estimation for unlisted)
+- [ ] Answer bank completion (sponsorship, salary expectation, remote/relocation — user input)
+- [ ] Phase 2: prefill + review queue
+- [ ] Phase 3: auto-submit adapters (Greenhouse → Lever → Ashby)
