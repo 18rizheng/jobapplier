@@ -1,10 +1,11 @@
-# Install order matters: python-jobspy pins numpy==1.26.3 which has no wheel
+﻿# Install order matters: python-jobspy pins numpy==1.26.3 which has no wheel
 # for Python 3.13+. Install these first, then jobspy WITHOUT its pinned deps:
 #
 #   pip install -r requirements.txt
 #   pip install python-jobspy --no-deps
 #
 anthropic
+flask
 numpy
 pandas
 requests

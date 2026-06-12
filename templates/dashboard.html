@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JOBAPPLIER · pipeline console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101216; --panel:#16191f; --panel2:#1c2028; --line:#2a2f3a;
+  --paper:#e8e4d8; --dim:#8b8fa0; --faint:#565b6b;
+  --amber:#f5a524; --green:#46c682; --red:#e5564f; --blue:#5aa9e6;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--ink);color:var(--paper);font-family:var(--sans);font-size:14px;
+  background-image:radial-gradient(circle at 18% -10%, #1c2130 0%, transparent 50%),
+                   repeating-linear-gradient(0deg, transparent 0 2px, rgba(255,255,255,.012) 2px 4px);}
+a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+
+/* ---- pipeline rail ---- */
+.rail{border-right:1px solid var(--line);padding:28px 18px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{font-family:'Archivo';font-weight:900;font-stretch:120%;font-size:21px;letter-spacing:.04em;color:var(--amber)}
+.brand small{display:block;font:500 10px var(--mono);color:var(--faint);letter-spacing:.18em;margin-top:4px}
+.stations{margin-top:34px;position:relative}
+.stations:before{content:'';position:absolute;left:7px;top:10px;bottom:10px;width:2px;background:var(--line)}
+.station{display:flex;align-items:center;gap:12px;padding:9px 0;position:relative}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--faint);background:var(--ink);flex:none;z-index:1}
+.station.active .dot{border-color:var(--amber);box-shadow:0 0 8px rgba(245,165,36,.5)}
+.station .lbl{font:500 10px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.station .n{margin-left:auto;font:600 15px var(--mono);color:var(--paper)}
+.station.warn .n{color:var(--red)}
+.rail .meta{margin-top:40px;font:400 10px var(--mono);color:var(--faint);line-height:1.9}
+
+/* ---- main ---- */
+main{padding:26px 34px 80px;max-width:1280px}
+h2{font-family:'Archivo';font-weight:800;font-stretch:115%;font-size:15px;letter-spacing:.1em;
+   text-transform:uppercase;color:var(--paper);margin:38px 0 14px;display:flex;align-items:center;gap:10px}
+h2:first-child{margin-top:0}
+h2 .count{font:600 11px var(--mono);color:var(--ink);background:var(--amber);padding:2px 8px;border-radius:2px}
+h2 .rule{flex:1;height:1px;background:var(--line)}
+
+/* queue table */
+table{width:100%;border-collapse:collapse}
+th{font:500 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
+   text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid #1d212a;vertical-align:top}
+tr.job:hover td{background:var(--panel)}
+.score{font:600 15px var(--mono);width:46px;text-align:center;border-radius:2px;padding:4px 0;display:inline-block}
+.s-hi{background:rgba(70,198,130,.16);color:var(--green)} .s-mid{background:rgba(245,165,36,.14);color:var(--amber)}
+.s-heur{background:rgba(90,169,230,.12);color:var(--blue)}
+.t{font-weight:600} .sub{color:var(--dim);font-size:12.5px;margin-top:2px}
+.reason{color:var(--dim);font-size:12.5px;max-width:430px;line-height:1.5}
+.risks{font:400 11px var(--mono);color:var(--red);opacity:.85;margin-top:5px;line-height:1.5}
+.btn{font:600 11px var(--mono);letter-spacing:.08em;border:1px solid var(--line);background:var(--panel2);
+     color:var(--paper);padding:6px 12px;cursor:pointer;border-radius:2px;text-transform:uppercase}
+.btn:hover{border-color:var(--dim)}
+.btn.ok{border-color:rgba(70,198,130,.5);color:var(--green)} .btn.ok:hover{background:rgba(70,198,130,.12)}
+.btn.no{border-color:rgba(229,86,79,.4);color:var(--red)} .btn.no:hover{background:rgba(229,86,79,.1)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+
+/* package cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:16px 18px;
+      border-top:3px solid var(--faint)}
+.card.pass{border-top-color:var(--green)} .card.flag{border-top-color:var(--red)}
+.card.applied{border-top-color:var(--blue);opacity:.75}
+.card h3{font:600 14px var(--sans)} .card .co{color:var(--amber);font:600 12px var(--mono);margin:2px 0 8px}
+.badge{font:600 9.5px var(--mono);letter-spacing:.12em;padding:2px 7px;border-radius:2px;text-transform:uppercase}
+.b-pass{background:rgba(70,198,130,.15);color:var(--green)} .b-flag{background:rgba(229,86,79,.15);color:var(--red)}
+.b-wait{background:rgba(139,143,160,.15);color:var(--dim)} .b-app{background:rgba(90,169,230,.15);color:var(--blue)}
+.files{margin:10px 0;display:flex;flex-wrap:wrap;gap:5px}
+.files a{font:500 10.5px var(--mono);border:1px solid var(--line);padding:3px 8px;border-radius:2px;color:var(--paper)}
+.files a:hover{border-color:var(--amber);color:var(--amber);text-decoration:none}
+details{margin-top:8px} summary{font:500 11px var(--mono);color:var(--dim);cursor:pointer;letter-spacing:.06em}
+details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);background:var(--ink);
+            border:1px solid var(--line);padding:10px;margin-top:6px;max-height:260px;overflow:auto;line-height:1.6}
+.empty{color:var(--faint);font:400 12px var(--mono);padding:18px 4px}
+.toast{position:fixed;bottom:22px;right:22px;background:var(--panel2);border:1px solid var(--amber);
+       color:var(--paper);font:500 12px var(--mono);padding:10px 16px;border-radius:2px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="rail">
+    <div class="brand">JOBAPPLIER<small>PIPELINE CONSOLE</small></div>
+    <div class="stations">
+      {% set st = [('scored','SCORED', counts.get('scored',0), False),
+                   ('queued','APPROVED', counts.get('queued',0), False),
+                   ('packaged','PACKAGED', counts.get('packaged',0), False),
+                   ('reviewed','REVIEWED', counts.get('reviewed',0), False),
+                   ('flagged','FLAGGED', counts.get('flagged',0), True),
+                   ('applied','APPLIED', counts.get('applied',0), False)] %}
+      <div class="station"><span class="dot"></span><span class="lbl">DISCOVERED</span><span class="n">{{ total }}</span></div>
+      {% for key,label,n,warn in st %}
+      <div class="station {{ 'active' if n else '' }} {{ 'warn' if warn and n else '' }}">
+        <span class="dot"></span><span class="lbl">{{ label }}</span><span class="n">{{ n }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="meta">
+      {{ now }}<br>db: data/jobs.db<br>
+      rejected: {{ counts.get('rejected',0) }}<br><br>
+      run_discovery.py · daily<br>package.py · on approve
+    </div>
+  </aside>
+
+  <main>
+    <h2>Review queue <span class="count">{{ queue|length }}</span><span class="rule"></span></h2>
+    {% if queue %}
+    <table>
+      <tr><th>fit</th><th>role</th><th>assessment</th><th style="width:170px">actions</th></tr>
+      {% for j in queue %}
+      <tr class="job" id="row-{{ j.id }}">
+        <td><span class="score {{ 's-hi' if (j.llm_score or 0) >= 7 else ('s-mid' if j.llm_score else 's-heur') }}">
+            {{ '%.0f'|format(j.llm_score if j.llm_score is not none else j.fit_score) }}</span></td>
+        <td style="max-width:300px">
+          <div class="t">{{ j.title }}</div>
+          <div class="sub">{{ j.company }} · {{ j.location or '?' }} ·
+            {% if j.salary_yearly_min %}${{ '{:,.0f}'.format(j.salary_yearly_min) }}+
+            {% elif j.llm_salary_estimate %}~${{ '{:,.0f}'.format(j.llm_salary_estimate) }} est
+            {% else %}salary ?{% endif %} · {{ j.persona or '–' }}</div>
+        </td>
+        <td><div class="reason">{{ j.llm_reason or j.score_reason }}</div>
+          {% if j.risks %}<div class="risks">{% for r in j.risks[:3] %}▸ {{ r[:90] }}<br>{% endfor %}</div>{% endif %}
+        </td>
+        <td><div class="actions">
+          <button class="btn ok" onclick="act({{ j.id }}, 'approve')">Approve</button>
+          <button class="btn no" onclick="act({{ j.id }}, 'reject')">Reject</button>
+          <a class="btn" href="{{ j.url }}" target="_blank">Post</a>
+        </div></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<div class="empty">queue empty — run run_discovery.py or score_backlog.py</div>{% endif %}
+
+    <h2>Application packages <span class="count">{{ packages|length }}</span><span class="rule"></span></h2>
+    <div class="cards">
+      {% for j in packages %}
+      <div class="card {{ 'applied' if j.status == 'applied' else ('pass' if j.status == 'reviewed' else ('flag' if j.status == 'flagged' else '')) }}">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <h3>{{ j.title[:60] }}</h3>
+          <span class="badge {{ 'b-app' if j.status=='applied' else ('b-pass' if j.status=='reviewed' else ('b-flag' if j.status=='flagged' else 'b-wait')) }}">{{ j.status }}</span>
+        </div>
+        <div class="co">{{ j.company }} · {{ '%.0f'|format(j.llm_score if j.llm_score is not none else j.fit_score) }}/10</div>
+        <div class="files">
+          {% for f in j.files %}<a href="/files/{{ j.id }}/{{ f }}" target="_blank">{{ f }}</a>{% endfor %}
+        </div>
+        {% if j.cover_letter %}<details><summary>cover letter</summary><pre>{{ j.cover_letter }}</pre></details>{% endif %}
+        {% if j.review_body %}<details><summary>reviewer verdict</summary><pre>{{ j.review_body }}</pre></details>{% endif %}
+        <div class="actions" style="margin-top:10px">
+          {% if j.status in ('reviewed','flagged') %}
+          <button class="btn ok" onclick="act({{ j.id }}, 'applied')">Mark applied</button>{% endif %}
+          {% if j.status == 'flagged' %}
+          <button class="btn" onclick="act({{ j.id }}, 'unflag')">Override flag</button>{% endif %}
+          <a class="btn" href="{{ j.url }}" target="_blank">Post</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <h2>Applied <span class="count">{{ applied|length }}</span><span class="rule"></span></h2>
+    {% if applied %}
+    <table>
+      <tr><th>when</th><th>role</th><th>outcome</th></tr>
+      {% for j in applied %}
+      <tr><td style="font-family:var(--mono);font-size:12px">{{ (j.applied_at or '')[:10] }}</td>
+          <td><span class="t">{{ j.title[:60] }}</span> <span class="sub">— {{ j.company }}</span></td>
+          <td style="font-family:var(--mono);font-size:12px">{{ j.outcome or 'awaiting' }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<div class="empty">nothing submitted yet</div>{% endif %}
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+async function act(id, action){
+  const r = await fetch(`/api/jobs/${id}/${action}`, {method:'POST'});
+  if(r.ok){
+    const t = document.getElementById('toast');
+    t.textContent = `job ${id} → ${action}`; t.style.display = 'block';
+    setTimeout(() => location.reload(), 500);
+  }
+}
+</script>
+</body>
+</html>

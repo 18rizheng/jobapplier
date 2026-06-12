@@ -95,12 +95,16 @@ Respond with ONLY a JSON object, no markdown fences, matching exactly:
 "knockout_risks": [<strings>], "reason": "<1-2 sentences>"}"""
 
 
-def _run_cli(prompt, model, attempts=2):
+def _run_cli(prompt, model, attempts=3):
+    import time
+
     exe = shutil.which("claude")
     if not exe:
         raise RuntimeError("no ANTHROPIC_API_KEY and no claude CLI on PATH")
     last_error = None
-    for _ in range(attempts):
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(30 * attempt)  # back off - transient failures are usually throttling
         # prompt goes via stdin: Windows argv is capped at ~8K chars
         result = subprocess.run(
             [exe, "-p", "--model", model],
