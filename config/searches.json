@@ -2,7 +2,7 @@
   "jobspy": {
     "sites": ["indeed"],
     "results_wanted": 15,
-    "hours_old": 168,
+    "hours_old": 72,
     "locations": [
       "Remote",
       "New York, NY",

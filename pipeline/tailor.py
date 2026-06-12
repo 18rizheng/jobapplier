@@ -37,16 +37,27 @@ def _build_prompt(job, facts):
     return f"""Rewrite this candidate's resume content to fit one specific job posting.
 
 You may rewrite bullets from scratch: re-phrase, merge, split, re-emphasize, and mirror
-the posting's vocabulary. Lead with what this employer values most. Write tight,
-metric-forward bullets (one line each, ~15-30 words, strong verbs, no first person).
+the posting's vocabulary aggressively. Write tight, metric-forward bullets (one line
+each, ~15-30 words, strong verbs, no first person).
 
-ABSOLUTE CONSTRAINT: every fact - employers, dates, titles, numbers, technologies,
-accomplishments - must come from the FACT CORPUS below. Rephrasing is encouraged;
-new facts, inflated metrics, rounded-up numbers, or implied experience the corpus
-doesn't support are forbidden. If the posting wants something the corpus lacks,
-do NOT manufacture a bridge - emphasize the nearest real strength instead.
-Numbers must match the corpus exactly (e.g. 600+ of 665 changes reached production -
-never claim all 665 shipped).
+SHARPNESS RULES:
+- The FIRST bullet must directly answer the posting's single most important requirement.
+- Translate corpus facts into THIS posting's language wherever the substance matches
+  (corpus "API testing (Postman, SoapUI)" -> "REST API test automation" for an API
+  role). Mirror their nouns; never their facts.
+- Translate domain jargon for the audience: for non-healthcare employers, prefer
+  "integration interfaces between enterprise systems" over HL7v2/Bridges specifics;
+  for healthcare employers, lean into the domain vocabulary hard.
+- At least two-thirds of bullets carry a number from the corpus.
+- Cut what this employer won't care about; an 8-bullet resume aimed at their needs
+  beats 9 bullets of coverage.
+
+ABSOLUTE CONSTRAINT (the reviewer rejects violations): every checkable fact -
+employers, dates, titles, NUMBERS, named technologies, credentials - must come from
+the FACT CORPUS below. Numbers must match the corpus exactly (600+ of 665 changes
+reached production - never claim all 665 shipped). Never write a named tool,
+framework, or methodology the corpus doesn't contain, even if the posting begs for
+it - emphasize the nearest real strength instead.
 
 FACT CORPUS:
 {facts}

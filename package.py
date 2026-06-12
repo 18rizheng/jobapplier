@@ -50,6 +50,12 @@ def pick_resume(row, profile, folder, score):
         try:
             out = folder / "resume_tailored.docx"
             plan = tailor.tailor_resume(dict(row), out)
+            try:
+                from docx2pdf import convert
+                convert(str(out), str(out.with_suffix(".pdf")))
+                out = out.with_suffix(".pdf")
+            except Exception:
+                pass  # no Word on this machine - the docx is still submittable
             bullets = "\n".join(f"- {b}" for b in plan.experience_bullets)
             (folder / "tailoring.md").write_text(
                 f"# Tailoring plan\n\n{plan.rationale}\n\n"
