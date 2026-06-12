@@ -1,0 +1,31 @@
+# PII — never commit, even though the repo is private
+data/
+profile.json
+*.pdf
+*.docx
+
+# Secrets
+.env
+*.key
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# State
+*.db
+*.sqlite3
+
+# Playwright
+playwright-profile/
+.playwright/
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
