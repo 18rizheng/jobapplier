@@ -52,12 +52,18 @@ SHARPNESS RULES:
 - Cut what this employer won't care about; an 8-bullet resume aimed at their needs
   beats 9 bullets of coverage.
 
-ABSOLUTE CONSTRAINT (the reviewer rejects violations): every checkable fact -
-employers, dates, titles, NUMBERS, named technologies, credentials - must come from
-the FACT CORPUS below. Numbers must match the corpus exactly (600+ of 665 changes
-reached production - never claim all 665 shipped). Never write a named tool,
-framework, or methodology the corpus doesn't contain, even if the posting begs for
-it - emphasize the nearest real strength instead.
+GROUNDING POLICY: the FACT CORPUS below is your guide, not a phrasebook. Use the
+posting's keywords, concepts, methodologies, and domain terms freely to characterize
+the candidate's work - generalization and reasonable inference from the corpus are
+encouraged (release validation implies quality gates; CI pipeline ownership implies
+build/deploy fluency; cross-team coordination implies stakeholder management).
+Only three things are immovable (the reviewer rejects violations):
+1. Employers, job titles, dates, degrees, and certifications stay exactly as in the corpus.
+2. NUMBERS stay exactly as in the corpus (600+ of 665 changes reached production -
+   never claim all 665 shipped).
+3. Never claim hands-on proficiency in a specific named technology (language, tool,
+   framework, product) the corpus doesn't support - mirror the posting's *concepts*
+   instead, with the candidate's real stack as the evidence.
 
 FACT CORPUS:
 {facts}
