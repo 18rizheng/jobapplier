@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "version": 1,
+    "updated": "YYYY-MM-DD",
+    "note": "Sanitized schema example. The real data/profile.json is gitignored. Bullets are tagged by persona; tailoring may reorder/emphasize but never fabricate."
+  },
+  "contact": {
+    "full_name": "Jane Q. Example",
+    "preferred_name": "Jane Example",
+    "phone": "(555) 555-5555",
+    "email": "jane@example.com",
+    "location": "City, ST",
+    "linkedin": "https://linkedin.com/in/example",
+    "github": null,
+    "portfolio": null
+  },
+  "personas": {
+    "technical": {
+      "resume_file": "data/resumes/technical.pdf",
+      "target_titles": ["QA Engineer", "SDET", "Test Automation Engineer"],
+      "positioning": "One-sentence framing used by the scorer and tailor."
+    },
+    "analyst_pm": {
+      "resume_file": "data/resumes/analyst-pm.pdf",
+      "target_titles": ["Business Analyst", "Project Manager"],
+      "positioning": "..."
+    },
+    "general": {
+      "resume_file": null,
+      "render_from_profile": true,
+      "target_titles": ["Operations Analyst"],
+      "positioning": "Moldable persona rendered fresh per job."
+    }
+  },
+  "experience": [
+    {
+      "company": "Acme Corp",
+      "location": "City, ST",
+      "title": "Role Title",
+      "start": "2022-09",
+      "end": null,
+      "bullets": [
+        {
+          "text": "Accomplishment bullet exactly as it may appear on a resume.",
+          "personas": ["technical", "analyst_pm"],
+          "note": "Optional: mark mutually-exclusive framing variants of the same fact."
+        }
+      ]
+    }
+  ],
+  "skills": {
+    "category_name": ["skill", "skill"]
+  },
+  "education": [
+    {
+      "school": "University",
+      "location": "City, ST",
+      "credential": "BS, Major",
+      "graduation": "2022-06",
+      "status": "completed | expected"
+    }
+  ],
+  "leadership": [
+    {
+      "org": "Organization",
+      "role": "Role",
+      "start": "2018-01",
+      "end": "2019-02",
+      "bullets": ["..."],
+      "personas": ["general"]
+    }
+  ],
+  "search_criteria": {
+    "min_salary_usd": 100000,
+    "salary_unknown_policy": "estimate from title/level/location; flag, don't discard",
+    "locations": ["Remote (US)", "City, ST"],
+    "exclude": ["companies or keywords to skip"]
+  },
+  "answer_bank": {
+    "_comment": "Canonical answers to recurring screening questions. locked:true means the value is final and the applier may use it verbatim; locked:false blocks auto-submit for any application that needs it. EEO/demographic answers are user-set, never model-generated.",
+    "work_authorization": { "value": "...", "locked": false },
+    "requires_sponsorship": { "value": "...", "locked": false },
+    "willing_to_relocate": { "value": "...", "locked": false },
+    "remote_preference": { "value": "...", "locked": false },
+    "salary_expectation": { "value": "...", "locked": false },
+    "earliest_start_date": { "value": "...", "locked": false },
+    "why_leaving": { "value": "...", "locked": false },
+    "eeo_demographics": { "value": "...", "locked": false },
+    "security_clearance": { "value": "...", "locked": false }
+  }
+}
