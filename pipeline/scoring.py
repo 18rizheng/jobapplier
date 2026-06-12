@@ -6,9 +6,21 @@ Salary policy: listed >= floor passes, listed < floor fails, unlisted is
 flagged 'unknown' and kept (most postings don't list salary)."""
 
 import re
+from datetime import datetime, timezone
 
 SENIORITY_PENALTY = ("principal", "staff", "director", "vp", "vice president", "head of")
 JUNIOR_PENALTY = ("intern", "internship", "junior", "entry level", "entry-level")
+
+
+def posting_age_days(date_posted):
+    """Days since posting; None when unknown. Accepts YYYY-MM-DD prefixes."""
+    if not date_posted:
+        return None
+    try:
+        posted = datetime.strptime(str(date_posted)[:10], "%Y-%m-%d")
+        return max((datetime.now(timezone.utc).replace(tzinfo=None) - posted).days, 0)
+    except ValueError:
+        return None
 
 
 def _tokens(text):
@@ -60,6 +72,14 @@ def score_job(job, profile):
     if job.get("is_remote"):
         score += 1.0
         reasons.append("remote")
+
+    age = posting_age_days(job.get("date_posted"))
+    if age is not None and age <= 3:
+        score += 1.0          # applications in the first 72h convert best
+        reasons.append("fresh posting")
+    elif age is not None and age > 14:
+        score -= 1.0
+        reasons.append("stale posting")
 
     lowered = (job.get("title") or "").lower()
     if any(k in lowered for k in SENIORITY_PENALTY + JUNIOR_PENALTY):

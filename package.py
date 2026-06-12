@@ -89,10 +89,11 @@ def write_cover_letter(folder, row, profile):
     facts = (ROOT / "data" / "facts.md").read_text(encoding="utf-8-sig")
     prompt = f"""Write a cover letter for this application. 150-200 words, three short
 paragraphs, plain confident tone. No "I am writing to express", no flattery.
-MUST mention the company name ({row['company']}) at least once. Every factual claim
-must be traceable to the FACT CORPUS below - rephrasing is fine, new facts are not.
-Name 1-2 specific overlaps between the corpus and the posting. Output ONLY the letter
-body - no header, no preamble like "Here's the letter", no separators, no commentary.
+THE FIRST SENTENCE must name {row['company']} and state the single most compelling,
+specific overlap between the candidate and this exact role - recruiters decide in one
+line whether to keep reading. Every factual claim must be traceable to the FACT CORPUS
+below - rephrasing and the posting's own vocabulary are fine, new facts are not.
+Output ONLY the letter body - no header, no preamble, no separators, no commentary.
 
 FACT CORPUS:
 {facts[:6000]}

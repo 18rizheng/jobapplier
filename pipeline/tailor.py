@@ -21,6 +21,7 @@ FACTS = ROOT / "data" / "facts.md"
 
 
 class TailoredResume(BaseModel):
+    summary: str                    # 15-35 word professional summary aimed at THIS job
     experience_bullets: list[str]   # 7-9 rewritten bullets, job-matched order
     skills_lines: list[str]         # exactly 4 "Category: a, b, c" lines
     rationale: str                  # what was emphasized and why, 2-3 sentences
@@ -29,8 +30,9 @@ class TailoredResume(BaseModel):
 _SCHEMA_NOTE = """
 
 Respond with ONLY a JSON object, no markdown fences, matching exactly:
-{"experience_bullets": [<7-9 strings>], "skills_lines": [<exactly 4 strings like
-"Category: item, item, item">], "rationale": "<2-3 sentences>"}"""
+{"summary": "<15-35 word professional summary>", "experience_bullets": [<7-9 strings>],
+"skills_lines": [<exactly 4 strings like "Category: item, item, item">],
+"rationale": "<2-3 sentences>"}"""
 
 
 def _build_prompt(job, facts):
@@ -74,9 +76,14 @@ Company: {job.get('company')}
 Description:
 {(job.get('description') or '')[:4500]}
 
-Produce 7-9 experience bullets for the Epic Systems Quality Manager role (the earlier
-tutoring/hospital roles stay untouched in the template) and exactly 4 skills lines in
-"Category: items" form, categories and orderings chosen for THIS posting."""
+Produce:
+1. A professional summary (15-35 words, no first person, no objective-statement cliches)
+   positioning the candidate for THIS role specifically - a recruiter skimming 6 seconds
+   should immediately see the match.
+2. 7-9 experience bullets for the Epic Systems Quality Manager role (the earlier
+   tutoring/hospital roles stay untouched in the template).
+3. Exactly 4 skills lines in "Category: items" form, categories and orderings chosen
+   for THIS posting."""
 
 
 def _bullet_blocks(doc):
@@ -136,8 +143,14 @@ def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
         raise ValueError(f"expected 7-9 experience bullets, got {len(plan.experience_bullets)}")
     if len(plan.skills_lines) != 4:
         raise ValueError(f"expected 4 skills lines, got {len(plan.skills_lines)}")
+    n_words = len(plan.summary.split())
+    if not (8 <= n_words <= 45):
+        raise ValueError(f"summary should be 15-35 words, got {n_words}")
 
     doc = Document(TEMPLATE)
+    # tailored summary goes right under the contact line, before the first heading
+    summary_p = doc.paragraphs[2].insert_paragraph_before(plan.summary)
+    summary_p.runs[0].italic = True
     blocks = _bullet_blocks(doc)
     _write_block(blocks[0], plan.experience_bullets)
     _write_block(blocks[1], plan.skills_lines)

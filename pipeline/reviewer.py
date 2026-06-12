@@ -40,14 +40,13 @@ FACTS = ROOT / "data" / "facts.md"
 
 
 def _tailored_bullets(folder: Path):
-    """Extract generated bullet text from the tailored resume docx, if present."""
+    """Extract ALL generated text (summary + bullets) from the tailored docx."""
     docx_path = folder / "resume_tailored.docx"
     if not docx_path.exists():
         return ""
     from docx import Document
     doc = Document(docx_path)
-    return "\n".join(p.text for p in doc.paragraphs
-                     if p.style is not None and p.style.name == "List Paragraph")
+    return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
 
 def review_package(folder: Path, row, profile, model=llm.DEFAULT_MODEL) -> ReviewVerdict:

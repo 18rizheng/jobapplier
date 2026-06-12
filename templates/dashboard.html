@@ -121,7 +121,8 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
           <div class="sub">{{ j.company }} · {{ j.location or '?' }} ·
             {% if j.salary_yearly_min %}${{ '{:,.0f}'.format(j.salary_yearly_min) }}+
             {% elif j.llm_salary_estimate %}~${{ '{:,.0f}'.format(j.llm_salary_estimate) }} est
-            {% else %}salary ?{% endif %} · {{ j.persona or '–' }}</div>
+            {% else %}salary ?{% endif %} · {{ j.persona or '–' }}{% if j.age_days is not none %} ·
+            <span style="color:{{ 'var(--green)' if j.age_days <= 3 else ('var(--red)' if j.age_days > 14 else 'inherit') }}">{{ j.age_days }}d old</span>{% endif %}</div>
         </td>
         <td><div class="reason">{{ j.llm_reason or j.score_reason }}</div>
           {% if j.risks %}<div class="risks">{% for r in j.risks[:3] %}▸ {{ r[:90] }}<br>{% endfor %}</div>{% endif %}

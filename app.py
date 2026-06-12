@@ -42,11 +42,13 @@ def dashboard():
            AND COALESCE(llm_score, fit_score) >= 5
            ORDER BY llm_score IS NULL, COALESCE(llm_score, fit_score) DESC
            LIMIT 60""")]
+    from pipeline.scoring import posting_age_days
     for job in queue:
         try:
             job["risks"] = json.loads(job["knockout_risks"] or "[]")
         except (json.JSONDecodeError, TypeError):
             job["risks"] = []
+        job["age_days"] = posting_age_days(job.get("date_posted"))
 
     packages = []
     for r in conn.execute(

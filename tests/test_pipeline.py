@@ -88,6 +88,61 @@ def test_empty_title_scores_zero():
     assert score >= 0  # must not raise
 
 
+def test_posting_age_days():
+    from datetime import datetime, timedelta, timezone
+    from pipeline.scoring import posting_age_days
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    old = (datetime.now(timezone.utc) - timedelta(days=20)).strftime("%Y-%m-%d")
+    assert posting_age_days(today) == 0
+    assert posting_age_days(old) == 20
+    assert posting_age_days(None) is None
+    assert posting_age_days("") is None
+    assert posting_age_days("not-a-date") is None
+    assert posting_age_days(today + " 12:00:00") == 0  # timestamp prefix ok
+
+
+def test_recency_boost_and_stale_penalty():
+    from datetime import datetime, timedelta, timezone
+    fresh = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    stale = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+    _, s_fresh, _, _ = score_job(_job(date_posted=fresh), PROFILE)
+    _, s_stale, _, _ = score_job(_job(date_posted=stale), PROFILE)
+    assert s_fresh - s_stale == 2.0
+
+
+def test_tailor_rejects_bad_summary(monkeypatch, tmp_path):
+    import pytest
+    from pipeline import llm, tailor
+    from pipeline.tailor import TailoredResume
+
+    def fake(prompt, schema_model, schema_note, model=None):
+        return TailoredResume(summary="too short", experience_bullets=["b"] * 8,
+                              skills_lines=["a"] * 4, rationale="r")
+    monkeypatch.setattr(llm, "complete_json", fake)
+    with pytest.raises(ValueError):
+        tailor.tailor_resume({"title": "X", "company": "Y", "description": ""},
+                             tmp_path / "out.docx")
+
+
+def test_tailor_inserts_summary(monkeypatch, tmp_path):
+    from docx import Document
+    from pipeline import llm, tailor
+    from pipeline.tailor import TailoredResume
+
+    summary = ("Quality leader with nearly four years owning end-to-end QA for "
+               "healthcare integration software and AI-assisted test automation.")
+
+    def fake(prompt, schema_model, schema_note, model=None):
+        return TailoredResume(summary=summary, experience_bullets=["b"] * 8,
+                              skills_lines=["a"] * 4, rationale="r")
+    monkeypatch.setattr(llm, "complete_json", fake)
+    out = tmp_path / "out.docx"
+    tailor.tailor_resume({"title": "X", "company": "Y", "description": ""}, out)
+    texts = [p.text for p in Document(out).paragraphs]
+    assert summary in texts
+    assert texts.index(summary) == 2  # right under the contact line
+
+
 def test_seniority_penalty():
     _, hi, _, _ = score_job(_job(title="QA Engineer"), PROFILE)
     _, lo, _, _ = score_job(_job(title="Principal QA Engineer"), PROFILE)
