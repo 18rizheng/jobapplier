@@ -28,15 +28,25 @@ Agreed 2026-06-11. The original concept was: three resumes in, find 100 jobs pay
 | Apply (assisted lane) | Claude in Chrome; Workday navigation patterns referenced from proficiently-claude-skills |
 | Tracker | SQLite outcomes + inbox scanning (concept from jobpilot's /scan-inbox) for replies and verification codes; feeds response rates by persona/source/score-band back into scoring |
 
-## Resume tailoring rule (agreed 2026-06-11)
+## Resume tailoring rule (revised by Richard, 2026-06-11)
 
-Hybrid of static personas and per-job tailoring, gated by LLM fit score:
+**Generative tailoring for every approved job.** The tailor rewrites the resume per
+posting — new bullet text, recombined emphasis, job-matched vocabulary — it is NOT a
+reorganizer. Safety comes from three layers instead of a reorder-only constraint:
 
-- **Score ≥ 7 ("clear apply"):** render a tailored variant from the general docx template. Tailoring may ONLY reorder experience bullets, reorder the skills section, and choose between pre-approved framing variants of the same fact. Every sentence must exist in the vetted bullet pool — no new claims, ever. The review queue shows a diff against the base.
-- **Score 5–7:** send the matching persona PDF as-is; the extra review burden isn't justified.
-- **Always:** store the exact resume file sent in the per-job application folder and the database, so it's known precisely what each company saw (interview-day consistency).
+1. **Grounding corpus** (`data/facts.md`): the single canonical source of permissible
+   facts, compiled from the vetted resumes (and the claude.ai resume chat when provided).
+   The generator may rephrase and recombine freely; every claim must trace to the corpus.
+   Includes a hard NEVER-claim list (years of experience, degrees, certifications).
+2. **Reviewer gate** (`pipeline/reviewer.py`): an independent adversarial pass that traces
+   every generated resume bullet and cover-letter claim back to the corpus, checks the
+   company name/title targeting, and verifies consistency with locked answers. Binary
+   verdict; flagged packages cannot proceed.
+3. **Human approval**: the review queue approves jobs before packaging, and the final
+   package (including the generated resume) is inspectable before any submission.
 
-Rationale: the personas already capture the big win (matching the resume's frame to the job family); full per-job regeneration creates unreviewable variants and drift risk. Constrained reordering captures the remaining keyword/emphasis benefit at near-zero risk.
+Persona PDFs remain as fallback when generation fails. The exact resume file sent is
+always stored in the application folder and database (interview-day consistency).
 
 ## Answer bank
 

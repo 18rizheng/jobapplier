@@ -1,11 +1,14 @@
-"""Constrained resume tailoring (design rule, agreed 2026-06-11).
+"""Generative resume tailoring (rule changed by Richard, 2026-06-11).
 
-For jobs scoring >= 7, render a per-job variant of the general docx template.
-Tailoring may ONLY reorder existing bullets - the LLM returns a permutation of
-bullet indices, validated strictly, and python-docx moves the XML elements.
-No text is generated into the resume, so fabrication is structurally impossible.
+The tailor REWRITES the resume per job - new bullet text, recombined emphasis,
+job-matched language - grounded strictly in data/facts.md. It is free to
+reinvent phrasing and structure; it is never free to invent facts. The
+reviewer gate (pipeline/reviewer.py) independently traces every generated
+claim back to the corpus before anything can be submitted, and a human
+approves the final package.
 """
 
+import copy
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -14,19 +17,49 @@ from . import llm
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "data" / "resumes" / "general.docx"
+FACTS = ROOT / "data" / "facts.md"
 
 
-class TailoringPlan(BaseModel):
-    experience_order: list[int]   # permutation of all experience-bullet indices
-    skills_order: list[int]       # permutation of all skills-bullet indices
-    rationale: str                # 1-2 sentences, shown in the review diff
+class TailoredResume(BaseModel):
+    experience_bullets: list[str]   # 7-9 rewritten bullets, job-matched order
+    skills_lines: list[str]         # exactly 4 "Category: a, b, c" lines
+    rationale: str                  # what was emphasized and why, 2-3 sentences
 
 
 _SCHEMA_NOTE = """
 
 Respond with ONLY a JSON object, no markdown fences, matching exactly:
-{"experience_order": [<every experience index exactly once, best-leading-first>],
-"skills_order": [<every skills index exactly once>], "rationale": "<1-2 sentences>"}"""
+{"experience_bullets": [<7-9 strings>], "skills_lines": [<exactly 4 strings like
+"Category: item, item, item">], "rationale": "<2-3 sentences>"}"""
+
+
+def _build_prompt(job, facts):
+    return f"""Rewrite this candidate's resume content to fit one specific job posting.
+
+You may rewrite bullets from scratch: re-phrase, merge, split, re-emphasize, and mirror
+the posting's vocabulary. Lead with what this employer values most. Write tight,
+metric-forward bullets (one line each, ~15-30 words, strong verbs, no first person).
+
+ABSOLUTE CONSTRAINT: every fact - employers, dates, titles, numbers, technologies,
+accomplishments - must come from the FACT CORPUS below. Rephrasing is encouraged;
+new facts, inflated metrics, rounded-up numbers, or implied experience the corpus
+doesn't support are forbidden. If the posting wants something the corpus lacks,
+do NOT manufacture a bridge - emphasize the nearest real strength instead.
+Numbers must match the corpus exactly (e.g. 600+ of 665 changes reached production -
+never claim all 665 shipped).
+
+FACT CORPUS:
+{facts}
+
+JOB POSTING:
+Title: {job.get('title')}
+Company: {job.get('company')}
+Description:
+{(job.get('description') or '')[:4500]}
+
+Produce 7-9 experience bullets for the Epic Systems Quality Manager role (the earlier
+tutoring/hospital roles stay untouched in the template) and exactly 4 skills lines in
+"Category: items" form, categories and orderings chosen for THIS posting."""
 
 
 def _bullet_blocks(doc):
@@ -44,57 +77,46 @@ def _bullet_blocks(doc):
     return blocks
 
 
-def _reorder(paragraphs, order):
-    elements = [p._p for p in paragraphs]
-    anchor = elements[0].getprevious()
-    parent = elements[0].getparent()
-    for el in elements:
-        parent.remove(el)
-    prev = anchor
-    for idx in order:
-        if prev is None:
-            parent.insert(0, elements[idx])
-        else:
-            prev.addnext(elements[idx])
-        prev = elements[idx]
+def _set_text(paragraph, text):
+    """Replace a paragraph's text, keeping the first run's formatting."""
+    runs = paragraph.runs
+    if runs:
+        runs[0].text = text
+        for run in runs[1:]:
+            run._r.getparent().remove(run._r)
+    else:
+        paragraph.add_run(text)
 
 
-def _validate(order, n, label):
-    if sorted(order) != list(range(n)):
-        raise ValueError(f"{label} is not a permutation of 0..{n - 1}: {order}")
+def _write_block(paragraphs, lines):
+    """Write `lines` into a bullet block, cloning or deleting paragraphs to fit."""
+    while len(paragraphs) < len(lines):
+        clone = copy.deepcopy(paragraphs[-1]._p)
+        paragraphs[-1]._p.addnext(clone)
+        from docx.text.paragraph import Paragraph
+        paragraphs.append(Paragraph(clone, paragraphs[-1]._parent))
+    for extra in paragraphs[len(lines):]:
+        extra._p.getparent().remove(extra._p)
+    for paragraph, line in zip(paragraphs, lines):
+        _set_text(paragraph, line)
 
 
-def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL) -> TailoringPlan:
-    """Write a tailored copy of the general template to out_path. Returns the plan."""
+def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL) -> TailoredResume:
+    """Write a regenerated resume docx to out_path. Returns the plan."""
     from docx import Document
+
+    facts = FACTS.read_text(encoding="utf-8-sig")
+    plan = llm.complete_json(_build_prompt(job, facts), TailoredResume, _SCHEMA_NOTE, model)
+
+    if not (7 <= len(plan.experience_bullets) <= 9):
+        raise ValueError(f"expected 7-9 experience bullets, got {len(plan.experience_bullets)}")
+    if len(plan.skills_lines) != 4:
+        raise ValueError(f"expected 4 skills lines, got {len(plan.skills_lines)}")
 
     doc = Document(TEMPLATE)
     blocks = _bullet_blocks(doc)
-    experience, skills = blocks[0], blocks[1]
-
-    exp_lines = "\n".join(f"{i}: {p.text[:200]}" for i, p in enumerate(experience))
-    skill_lines = "\n".join(f"{i}: {p.text[:200]}" for i, p in enumerate(skills))
-    prompt = f"""Reorder resume bullets to lead with what this job posting values most.
-You may ONLY reorder - every index appears exactly once, nothing added or removed.
-
-JOB POSTING:
-Title: {job.get('title')}
-Company: {job.get('company')}
-Description:
-{(job.get('description') or '')[:4000]}
-
-EXPERIENCE BULLETS:
-{exp_lines}
-
-SKILLS BULLETS:
-{skill_lines}"""
-
-    plan = llm.complete_json(prompt, TailoringPlan, _SCHEMA_NOTE, model)
-    _validate(plan.experience_order, len(experience), "experience_order")
-    _validate(plan.skills_order, len(skills), "skills_order")
-
-    _reorder(experience, plan.experience_order)
-    _reorder(skills, plan.skills_order)
+    _write_block(blocks[0], plan.experience_bullets)
+    _write_block(blocks[1], plan.skills_lines)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(out_path)
     return plan

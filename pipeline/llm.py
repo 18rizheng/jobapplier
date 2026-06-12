@@ -95,19 +95,22 @@ Respond with ONLY a JSON object, no markdown fences, matching exactly:
 "knockout_risks": [<strings>], "reason": "<1-2 sentences>"}"""
 
 
-def _run_cli(prompt, model):
+def _run_cli(prompt, model, attempts=2):
     exe = shutil.which("claude")
     if not exe:
         raise RuntimeError("no ANTHROPIC_API_KEY and no claude CLI on PATH")
-    # prompt goes via stdin: Windows argv is capped at ~8K chars
-    result = subprocess.run(
-        [exe, "-p", "--model", model],
-        input=prompt,
-        capture_output=True, text=True, timeout=300, encoding="utf-8", errors="replace",
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"claude CLI failed: {result.stderr[:500]}")
-    return result.stdout
+    last_error = None
+    for _ in range(attempts):
+        # prompt goes via stdin: Windows argv is capped at ~8K chars
+        result = subprocess.run(
+            [exe, "-p", "--model", model],
+            input=prompt,
+            capture_output=True, text=True, timeout=300, encoding="utf-8", errors="replace",
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout
+        last_error = result.stderr[:500] or f"exit {result.returncode}, empty output"
+    raise RuntimeError(f"claude CLI failed after {attempts} attempts: {last_error}")
 
 
 def complete_json(prompt, schema_model, schema_note, model=DEFAULT_MODEL):

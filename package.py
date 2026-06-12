@@ -14,6 +14,7 @@ Usage:  .venv\\Scripts\\python package.py
 import json
 import re
 import shutil
+import sys
 from pathlib import Path
 
 from pipeline import db, llm, tailor
@@ -43,17 +44,22 @@ def write_job_md(folder, row):
 
 
 def pick_resume(row, profile, folder, score):
-    """Returns the resume file path placed in the folder, per the tailoring rule."""
-    if score >= TAILOR_THRESHOLD and tailor.TEMPLATE.exists():
-        out = folder / "resume_tailored.docx"
-        plan = tailor.tailor_resume(dict(row), out)
-        (folder / "tailoring.md").write_text(
-            f"# Tailoring plan\n\n{plan.rationale}\n\n"
-            f"- experience order: {plan.experience_order}\n"
-            f"- skills order: {plan.skills_order}\n\n"
-            f"Reorder-only of vetted bullets from data/resumes/general.docx - no new text.\n",
-            encoding="utf-8-sig")
-        return out
+    """Generated tailored resume for every approved job (rule changed 2026-06-11);
+    persona PDF only as a fallback when generation fails."""
+    if tailor.TEMPLATE.exists():
+        try:
+            out = folder / "resume_tailored.docx"
+            plan = tailor.tailor_resume(dict(row), out)
+            bullets = "\n".join(f"- {b}" for b in plan.experience_bullets)
+            (folder / "tailoring.md").write_text(
+                f"# Tailoring plan\n\n{plan.rationale}\n\n"
+                f"## Generated bullets\n{bullets}\n\n"
+                f"## Skills lines\n" + "\n".join(f"- {s}" for s in plan.skills_lines) + "\n\n"
+                f"Generated from data/facts.md; fabrication-checked by the reviewer gate.\n",
+                encoding="utf-8-sig")
+            return out
+        except Exception as exc:
+            print(f"  ! tailoring failed ({exc}); falling back to persona PDF")
     persona = row["persona"] if row["persona"] in ("technical", "analyst_pm") else "general"
     src_name = profile["personas"][persona].get("resume_file") or "data/resumes/general.pdf"
     src = ROOT / src_name
@@ -74,19 +80,16 @@ def clean_letter(text):
 
 
 def write_cover_letter(folder, row, profile):
+    facts = (ROOT / "data" / "facts.md").read_text(encoding="utf-8-sig")
     prompt = f"""Write a cover letter for this application. 150-200 words, three short
-paragraphs, plain confident tone. No "I am writing to express", no flattery, no
-fabrication - only facts from the background below. Name 1-2 specific overlaps
-between the background and the posting. Output ONLY the letter body - no header,
-no preamble like "Here's the letter", no separators, no commentary after.
+paragraphs, plain confident tone. No "I am writing to express", no flattery.
+MUST mention the company name ({row['company']}) at least once. Every factual claim
+must be traceable to the FACT CORPUS below - rephrasing is fine, new facts are not.
+Name 1-2 specific overlaps between the corpus and the posting. Output ONLY the letter
+body - no header, no preamble like "Here's the letter", no separators, no commentary.
 
-BACKGROUND:
-Quality Manager on Epic Systems' EDI team since Sept 2022. Owns end-to-end QA for
-healthcare integration software (HL7v2, FHIR, EDI) - 665 changes, 146 projects,
-600+ to production. Built multi-agent AI code-review pipelines (Claude Code, Python),
-cutting review cost 40-50%. Owns quarterly release testing across two product teams.
-Requirements gathering with international customers (Denmark, on-site). Mentors staff,
-teaches internal classes. BS Biochemistry UCLA 2022; CS capstone at UW-Madison in progress.
+FACT CORPUS:
+{facts[:6000]}
 
 POSTING:
 Title: {row['title']}
@@ -130,6 +133,10 @@ def main():
             continue
         conn.execute("UPDATE jobs SET status='packaged' WHERE id=?", (row["id"],))
         conn.commit()
+
+    if rows and "--no-review" not in sys.argv:
+        from pipeline import reviewer
+        reviewer.review_all()
 
     print("done - review folders under data/applications/ before applying")
 

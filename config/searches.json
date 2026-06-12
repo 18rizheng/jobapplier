@@ -27,8 +27,8 @@
     }
   },
   "ats": {
-    "greenhouse_boards": [],
-    "lever_orgs": [],
+    "greenhouse_boards": ["gitlab", "datadog", "stripe", "cloudflare", "doximity", "flatironhealth", "zocdoc"],
+    "lever_orgs": ["plaid"],
     "ashby_orgs": []
   },
   "llm_scoring": {

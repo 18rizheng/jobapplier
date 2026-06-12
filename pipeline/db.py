@@ -42,6 +42,9 @@ MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN llm_reason TEXT",
     "ALTER TABLE jobs ADD COLUMN llm_salary_estimate REAL",
     "ALTER TABLE jobs ADD COLUMN knockout_risks TEXT",
+    "ALTER TABLE jobs ADD COLUMN applied_at TEXT",
+    "ALTER TABLE jobs ADD COLUMN outcome TEXT",  # response | interview | offer | rejected
+    "ALTER TABLE jobs ADD COLUMN outcome_at TEXT",
 ]
 
 

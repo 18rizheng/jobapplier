@@ -45,10 +45,20 @@ Requires `data/profile.json` (see [docs/profile.example.json](docs/profile.examp
 ## Run
 
 ```powershell
-.venv\Scripts\python run_discovery.py        # discover -> dedup -> score -> ranked list
+.venv\Scripts\python run_discovery.py     # discover -> dedup -> score (heuristic + LLM)
+.venv\Scripts\python review.py            # approve/reject scored jobs interactively
+.venv\Scripts\python package.py           # generate tailored resume + cover letter + answers,
+                                          # then the reviewer gate fabrication-checks everything
+.venv\Scripts\python apply.py             # dry-run fill (Greenhouse) / assist checklists (rest)
+.venv\Scripts\python apply.py --submit    # actually submit auto-lane applications
+.venv\Scripts\python track.py stats       # response rates by persona and score band
 ```
 
-Search terms, boards, and ATS company lists live in [config/searches.json](config/searches.json). Output: console top-20 plus `data/ranked_latest.csv`.
+Search terms, metros, ATS boards, and LLM settings live in [config/searches.json](config/searches.json). Register the daily 8am sweep once with [scripts/register_daily_task.ps1](scripts/register_daily_task.ps1).
+
+### Status flow
+
+`new -> scored -> queued (you approved) -> packaged -> reviewed | flagged -> applied`
 
 ## Status
 
@@ -56,7 +66,9 @@ Search terms, boards, and ATS company lists live in [config/searches.json](confi
 - [x] Master profile parsed from three resumes (persona-tagged bullets, answer bank)
 - [x] Phase 1: discovery (JobSpy + Greenhouse/Lever/Ashby pollers) → SQLite ingest/dedup → heuristic scoring → ranked list. Verified live: 60 postings, 51 new, real $100k+ matches ranked.
 - [x] LLM scoring: Claude reads the full description vs the profile — fit 0–10, salary estimation for unlisted postings, knockout-risk detection. Backends: Anthropic SDK (`ANTHROPIC_API_KEY` in `.env`) or `claude` CLI fallback. Verified live: correctly demoted a 9.0-heuristic job to 4.0 over an explicit 6+ years requirement.
-- [x] Search expanded to 16 major metros + remote (willing to relocate)
+- [x] Search expanded to 16 major metros + remote (willing to relocate); 7 Greenhouse boards + Lever seeded
 - [x] Answer bank locked: no sponsorship needed, relocating OK, start July 1 2026 (why-leaving paragraph and EEO choices still TODO)
-- [ ] Phase 2: prefill + review queue
-- [ ] Phase 3: auto-submit adapters (Greenhouse → Lever → Ashby)
+- [x] Phase 2: review queue (`review.py`), generative tailoring grounded in `data/facts.md`, application packaging (`package.py`), reviewer fabrication gate (`pipeline/reviewer.py`)
+- [x] Phase 3: Greenhouse Playwright adapter (dry-run default, `--submit` to send), assisted-lane checklists, outcome tracker (`track.py`), daily-sweep scheduler script
+- [ ] Inbox scanning for responses/verification codes
+- [ ] Lever/Ashby adapters; richer fact corpus from the claude.ai resume chat export
