@@ -101,7 +101,7 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
       {% endfor %}
     </div>
     <div class="meta">
-      <a href="/upskill" style="color:var(--amber)">↗ upskill report</a><br><br>
+      <a href="/upskill" style="color:var(--amber)">upskill report</a><br><br>
       {{ now }}<br>db: data/jobs.db<br>
       rejected: {{ counts.get('rejected',0) }}<br><br>
       run_discovery.py · daily<br>package.py · on approve
@@ -126,16 +126,16 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
         </div>
         <div class="co">{{ j.company }} · {{ '%.0f'|format(j.llm_score if j.llm_score is not none else j.fit_score) }}/10</div>
         <div class="files">
-          {% if j.has_preview %}<a href="/files/{{ j.id }}/form_filled.png" target="_blank">▣ filled form preview</a>{% endif %}
+          {% if j.has_preview %}<a href="/files/{{ j.id }}/form_filled.png" target="_blank">filled form preview</a>{% endif %}
           {% for f in ['resume_tailored.pdf','cover_letter.md'] %}<a href="/files/{{ j.id }}/{{ f }}" target="_blank">{{ f }}</a>{% endfor %}
         </div>
         {% if j.proposed %}<div class="risks" style="color:var(--amber);opacity:.95">
-          {% for p in j.proposed %}✎ {{ p }}<br>{% endfor %}</div>{% endif %}
-        {% if j.still_blocked %}<div class="risks">⚠ still needs you: {% for b in j.still_blocked %}{{ b }}; {% endfor %}</div>{% endif %}
+          {% for p in j.proposed %}proposed: {{ p }}<br>{% endfor %}</div>{% endif %}
+        {% if j.still_blocked %}<div class="risks">needs you: {% for b in j.still_blocked %}{{ b }}; {% endfor %}</div>{% endif %}
         {% if j.cover_letter %}<details><summary>cover letter</summary><pre>{{ j.cover_letter }}</pre></details>{% endif %}
         <div class="actions" style="margin-top:10px">
           {% if j.still_blocked %}
-          <a class="btn" style="border-color:var(--amber);color:var(--amber)" href="{{ j.url }}" target="_blank">Open &amp; finish →</a>
+          <a class="btn" style="border-color:var(--amber);color:var(--amber)" href="{{ j.url }}" target="_blank">Open &amp; finish</a>
           <button class="btn ok" onclick="markSent({{ j.id }})">Mark submitted</button>
           {% else %}
           <button class="btn ok" style="border-color:var(--amber);color:var(--amber)" onclick="send({{ j.id }})">Approve &amp; SEND</button>
@@ -164,7 +164,7 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
             <span style="color:{{ 'var(--green)' if j.age_days <= 3 else ('var(--red)' if j.age_days > 14 else 'inherit') }}">{{ j.age_days }}d old</span>{% endif %}</div>
         </td>
         <td><div class="reason">{{ j.llm_reason or j.score_reason }}</div>
-          {% if j.risks %}<div class="risks">{% for r in j.risks[:3] %}▸ {{ r[:90] }}<br>{% endfor %}</div>{% endif %}
+          {% if j.risks %}<div class="risks">{% for r in j.risks[:3] %}- {{ r[:90] }}<br>{% endfor %}</div>{% endif %}
         </td>
         <td><div class="actions">
           <button class="btn ok" onclick="act({{ j.id }}, 'approve')">Approve</button>
@@ -242,7 +242,7 @@ async function act(id, action){
   const r = await fetch(`/api/jobs/${id}/${action}`, {method:'POST'});
   if(r.ok){
     const t = document.getElementById('toast');
-    t.textContent = `job ${id} → ${action}`; t.style.display = 'block';
+    t.textContent = `job ${id} -> ${action}`; t.style.display = 'block';
     setTimeout(() => location.reload(), 500);
   }
 }
@@ -256,7 +256,7 @@ async function send(id){
   t.textContent = `sending job ${id}…`; t.style.display = 'block';
   const r = await fetch(`/api/jobs/${id}/send`, {method:'POST'});
   const d = await r.json();
-  t.textContent = `job ${id} → ${d.status}`;
+  t.textContent = `job ${id} -> ${d.status}`;
   setTimeout(() => location.reload(), 1100);
 }
 async function markSent(id){
