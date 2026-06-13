@@ -226,6 +226,10 @@ def test_de_ai_strips_dashes():
     assert de_ai("cut cost 40—50%") == "cut cost 40-50%"
     # date range
     assert de_ai("2022–Present") == "2022-Present"
+    # spaced date range (digit on one side) keeps a hyphen
+    assert de_ai("September 2022 – Present") == "September 2022-Present"
+    # tight compound proper noun -> hyphen, not comma
+    assert de_ai("University of Wisconsin–Madison") == "University of Wisconsin-Madison"
     # en dash and curly quotes
     assert de_ai("Epic’s “Bridges”") == "Epic's \"Bridges\""
     # ellipsis char
