@@ -216,6 +216,31 @@ def test_submit_gate_blocks_unmapped():
     assert can_submit({}, True) is True
 
 
+def test_de_ai_strips_dashes():
+    from pipeline.destyle import de_ai
+    # em dash as sentence separator -> comma
+    assert "—" not in de_ai("I own QA—the hard kind—daily.")
+    assert de_ai("I own QA—the hard kind—daily.") == "I own QA, the hard kind, daily."
+    # numeric range keeps a hyphen, not a comma
+    assert de_ai("cut cost 40–50%") == "cut cost 40-50%"
+    assert de_ai("cut cost 40—50%") == "cut cost 40-50%"
+    # date range
+    assert de_ai("2022–Present") == "2022-Present"
+    # en dash and curly quotes
+    assert de_ai("Epic’s “Bridges”") == "Epic's \"Bridges\""
+    # ellipsis char
+    assert de_ai("wait… done") == "wait... done"
+    # no dashes at all -> unchanged
+    assert de_ai("Plain text, already clean.") == "Plain text, already clean."
+
+
+def test_de_ai_no_emdash_anywhere():
+    from pipeline.destyle import de_ai
+    samples = ["Led QA — owned 665 changes", "Python — SQL — Git", "$115,000–$135,000"]
+    for s in samples:
+        assert "—" not in de_ai(s) and "–" not in de_ai(s)
+
+
 def test_option_matches_word_boundary():
     from pipeline.adapters.greenhouse import _option_matches
     # "No" must match these

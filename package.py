@@ -87,6 +87,11 @@ def write_cover_letter(folder, row, profile, brief=""):
     brief_block = f"\nCOMPANY BRIEF (reference something specific from this):\n{brief}\n" if brief else ""
     prompt = f"""Write a cover letter for this application. 150-200 words, three short
 paragraphs, plain confident tone. No "I am writing to express", no flattery.
+WRITE LIKE A HUMAN, NOT AN AI: never use em dashes or en dashes (use commas/periods,
+and "to" for ranges); use straight quotes; ban these tell-tale words: leverage, utilize,
+spearhead, passionate, seamless, robust, cutting-edge, delve, tapestry, testament,
+synergy, foster, realm, landscape, elevate, unlock, empower, crucial, pivotal, thrilled,
+excited to, deeply. No "not only X but also Y". Vary sentence length, use plain verbs.
 THE FIRST SENTENCE must name {row['company']} and state the single most compelling,
 specific overlap between the candidate and this exact role - recruiters decide in one
 line whether to keep reading. If a company brief is given, reference something specific
@@ -107,7 +112,8 @@ Title: {row['title']}
 Company: {row['company']}
 Description:
 {(row['description'] or '')[:4000]}"""
-    letter = clean_letter(llm.complete_text(prompt))
+    from pipeline import destyle
+    letter = destyle.de_ai(clean_letter(llm.complete_text(prompt)))
     (folder / "cover_letter.md").write_text(letter, encoding="utf-8-sig")
 
 

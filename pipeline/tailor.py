@@ -56,6 +56,16 @@ You may rewrite bullets from scratch: re-phrase, merge, split, re-emphasize, and
 the posting's vocabulary aggressively. Write tight, metric-forward bullets (one line
 each, ~15-30 words, strong verbs, no first person).
 
+WRITE LIKE A HUMAN, NOT AN AI. Hard style rules:
+- NEVER use em dashes or en dashes. Use commas or periods; use "to" for ranges (write
+  "40 to 50%" or "40-50%", never with a long dash). Use plain straight quotes.
+- Ban these AI-tell words: leverage, utilize, spearhead, passionate, seamless, robust,
+  cutting-edge, dynamic, delve, tapestry, testament, synergy, foster, realm, landscape,
+  navigate, elevate, unlock, empower, crucial, pivotal, meticulous, holistic, myriad.
+- No "not only X but also Y". Vary sentence length. Plain strong verbs (built, owned,
+  cut, led, shipped, found), concrete nouns, real numbers. Sound like a competent
+  engineer wrote it in 10 minutes, not like marketing copy.
+
 SHARPNESS RULES:
 - The FIRST bullet must directly answer the posting's single most important requirement.
 - Translate corpus facts into THIS posting's language wherever the substance matches
@@ -154,6 +164,11 @@ def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
                    + "\n".join(f"- {i}" for i in avoid_issues))
     plan = llm.complete_json(prompt, TailoredResume, _SCHEMA_NOTE, model)
 
+    from . import destyle
+    plan.summary = destyle.de_ai(plan.summary)
+    plan.experience_bullets = [destyle.de_ai(b) for b in plan.experience_bullets]
+    plan.skills_lines = [destyle.de_ai(s) for s in plan.skills_lines]
+
     if not (7 <= len(plan.experience_bullets) <= 9):
         raise ValueError(f"expected 7-9 experience bullets, got {len(plan.experience_bullets)}")
     if len(plan.skills_lines) != 4:
@@ -163,6 +178,7 @@ def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
         raise ValueError(f"summary should be 15-35 words, got {n_words}")
 
     def render(experience_bullets):
+        from . import destyle
         doc = Document(TEMPLATE)
         # tailored summary goes right under the contact line, before the first heading
         summary_p = doc.paragraphs[2].insert_paragraph_before(plan.summary)
@@ -170,6 +186,7 @@ def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
         blocks = _bullet_blocks(doc)
         _write_block(blocks[0], experience_bullets)
         _write_block(blocks[1], plan.skills_lines)
+        destyle.sanitize_docx(doc)   # strip em dashes and AI-tell punctuation
         out_path.parent.mkdir(parents=True, exist_ok=True)
         doc.save(out_path)
 
