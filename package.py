@@ -90,9 +90,14 @@ paragraphs, plain confident tone. No "I am writing to express", no flattery.
 THE FIRST SENTENCE must name {row['company']} and state the single most compelling,
 specific overlap between the candidate and this exact role - recruiters decide in one
 line whether to keep reading. If a company brief is given, reference something specific
-and real about the company in the letter. Every factual claim about the CANDIDATE must
-be traceable to the FACT CORPUS below - rephrasing and the posting's own vocabulary are
-fine, new facts are not. Output ONLY the letter body - no header, no preamble.
+and real about the company. TWO grounding rules, both strict:
+- Claims about the CANDIDATE must trace to the FACT CORPUS (rephrasing/posting vocabulary
+  fine, new facts not).
+- Claims about the COMPANY must trace to the COMPANY BRIEF or posting. NEVER invent
+  specifics about the company's tools, tech stack, or how they work to manufacture a
+  connection (e.g. do not claim they use a tool just because the candidate knows it).
+  Connect via the company's stated mission/domain and the candidate's real strengths.
+Output ONLY the letter body - no header, no preamble.
 {brief_block}
 FACT CORPUS:
 {facts[:6000]}
