@@ -64,13 +64,16 @@ def write_assist(folder, row, answers):
         encoding="utf-8-sig")
 
 
-def main(submit=False, open_browser=False, only_id=None):
+def main(submit=False, prepare=False, open_browser=False, only_id=None):
+    """submit: actually send (autonomy lane / dashboard-approved single job).
+    prepare: fill + screenshot + screening, hold in awaiting_send, never send."""
     conn = db.connect()
     rows = conn.execute("SELECT * FROM jobs WHERE status='reviewed'").fetchall()
     if only_id:
         rows = [r for r in rows if r["id"] == only_id]
     mode = ("AUTONOMOUS" if db.autonomy_unlocked(conn) else
-            f"PROBATION {db.approved_send_count(conn)}/{db.PROBATION_SENDS}") if submit else "dry run"
+            f"PROBATION {db.approved_send_count(conn)}/{db.PROBATION_SENDS}") \
+        if submit else ("prepare-and-hold" if prepare else "dry run")
     print(f"{len(rows)} ready jobs ({mode})")
     sent = blocked = assisted = held = 0
 
@@ -86,11 +89,8 @@ def main(submit=False, open_browser=False, only_id=None):
         print(f"  [{lane}] {folder.name}")
 
         if lane == "auto" and target:
-            really_submit = submit
-            # Probation: until PROBATION_SENDS human-approved sends succeed, the
-            # autopilot prepares the form but holds for explicit approval per send.
-            if submit and not db.autonomy_unlocked(conn) and not row["send_approved"]:
-                really_submit = False
+            # 'prepare' never submits; 'submit' submits only when allowed by probation
+            really_submit = submit and (db.autonomy_unlocked(conn) or row["send_approved"])
             if really_submit:
                 from pipeline import sendcheck
                 profile = json.loads((ROOT / "data" / "profile.json")
@@ -102,22 +102,27 @@ def main(submit=False, open_browser=False, only_id=None):
             report = greenhouse.apply_greenhouse(target, folder, answers,
                                                  submit=really_submit, headless=True,
                                                  row=dict(row))
-            if report["unmapped_required"]:
-                print(f"    blocked on required questions: {report['unmapped_required'][:3]}")
-                blocked += 1
-            elif report["submitted"]:
+            if report["submitted"]:
                 conn.execute(
                     "UPDATE jobs SET status='applied', applied_at=? WHERE id=?",
                     (datetime.now(timezone.utc).isoformat(timespec='seconds'), row["id"]))
                 conn.commit()
                 sent += 1
                 print("    SUBMITTED")
-            elif submit and not really_submit:
+            elif really_submit and report["unmapped_required"]:
+                # autonomy lane couldn't complete it headlessly - leave for the human
+                print(f"    blocked on required questions: {report['unmapped_required'][:3]}")
+                blocked += 1
+            elif prepare or submit:
+                # probation (or a held job): surface it for review even if a field
+                # still needs the human - the card shows what's left
                 conn.execute("UPDATE jobs SET status='awaiting_send' WHERE id=?", (row["id"],))
                 conn.commit()
                 held += 1
-                print(f"    HELD for approval (probation {db.approved_send_count(conn)}/"
-                      f"{db.PROBATION_SENDS}) - form preview: {folder.name}\\form_filled.png")
+                tail = (" - needs you to finish: " + str(report["unmapped_required"][:2])
+                        if report["unmapped_required"] else "")
+                print(f"    HELD for approval ({db.approved_send_count(conn)}/"
+                      f"{db.PROBATION_SENDS}){tail}")
             else:
                 print(f"    filled (dry): see {folder.name}\\form_filled.png")
         else:
@@ -133,4 +138,5 @@ def main(submit=False, open_browser=False, only_id=None):
 
 if __name__ == "__main__":
     only = int(sys.argv[sys.argv.index("--id") + 1]) if "--id" in sys.argv else None
-    main(submit="--submit" in sys.argv, open_browser="--open" in sys.argv, only_id=only)
+    main(submit="--submit" in sys.argv, prepare="--prepare" in sys.argv,
+         open_browser="--open" in sys.argv, only_id=only)

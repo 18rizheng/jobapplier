@@ -133,9 +133,13 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
         {% if j.still_blocked %}<div class="risks">⚠ still needs you: {% for b in j.still_blocked %}{{ b }}; {% endfor %}</div>{% endif %}
         {% if j.cover_letter %}<details><summary>cover letter</summary><pre>{{ j.cover_letter }}</pre></details>{% endif %}
         <div class="actions" style="margin-top:10px">
+          {% if j.still_blocked %}
+          <a class="btn" style="border-color:var(--amber);color:var(--amber)" href="{{ j.url }}" target="_blank">Open &amp; finish →</a>
+          <button class="btn ok" onclick="markSent({{ j.id }})">Mark submitted</button>
+          {% else %}
           <button class="btn ok" style="border-color:var(--amber);color:var(--amber)" onclick="send({{ j.id }})">Approve &amp; SEND</button>
+          {% endif %}
           <button class="btn no" onclick="act({{ j.id }}, 'reject')">Reject</button>
-          <a class="btn" href="{{ j.url }}" target="_blank">Post</a>
         </div>
       </div>
       {% endfor %}
@@ -252,7 +256,12 @@ async function send(id){
   const r = await fetch(`/api/jobs/${id}/send`, {method:'POST'});
   const d = await r.json();
   t.textContent = `job ${id} → ${d.status}`;
-  setTimeout(() => location.reload(), 900);
+  setTimeout(() => location.reload(), 1100);
+}
+async function markSent(id){
+  if(!confirm('Confirm you submitted this application in your browser?')) return;
+  const r = await fetch(`/api/jobs/${id}/sent_manual`, {method:'POST'});
+  if(r.ok) location.reload();
 }
 </script>
 </body>

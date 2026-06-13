@@ -123,14 +123,29 @@ def job_action(job_id, action):
 
 @app.route("/api/jobs/<int:job_id>/send", methods=["POST"])
 def job_send(job_id):
-    """Human approves a held application: mark approved and actually submit it."""
+    """Human approves a fully-filled held application: mark approved and submit headlessly."""
     conn = db.connect()
     conn.execute("UPDATE jobs SET send_approved=1, status='reviewed' WHERE id=?", (job_id,))
     conn.commit()
     import apply as apply_mod
     apply_mod.main(submit=True, only_id=job_id)
     row = conn.execute("SELECT status FROM jobs WHERE id=?", (job_id,)).fetchone()
-    return jsonify({"ok": True, "status": row["status"]})
+    ok = row["status"] == "applied"
+    if not ok:  # headless submit couldn't complete - leave it for manual finish
+        conn.execute("UPDATE jobs SET status='awaiting_send' WHERE id=?", (job_id,))
+        conn.commit()
+    return jsonify({"ok": ok, "status": "applied" if ok else "needs manual finish"})
+
+
+@app.route("/api/jobs/<int:job_id>/sent_manual", methods=["POST"])
+def job_sent_manual(job_id):
+    """Human finished a partially-filled form in their own browser and submitted it.
+    Counts toward the probation tally (it was a human-approved send)."""
+    conn = db.connect()
+    conn.execute("UPDATE jobs SET send_approved=1, status='applied', applied_at=? WHERE id=?",
+                 (datetime.now(timezone.utc).isoformat(timespec="seconds"), job_id))
+    conn.commit()
+    return jsonify({"ok": True, "status": "applied"})
 
 
 @app.route("/api/jobs/<int:job_id>/outcome/<result>", methods=["POST"])

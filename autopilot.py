@@ -25,7 +25,10 @@ def main():
     print(f"autopilot: auto-approved {approved} jobs at >= {THRESHOLD}")
 
     package.main()
-    apply_mod.main(submit=True)
+    if db.autonomy_unlocked(conn):
+        apply_mod.main(submit=True)          # past probation: send autonomously
+    else:
+        apply_mod.main(prepare=True)         # probation: prepare + hold for approval
 
 
 if __name__ == "__main__":
