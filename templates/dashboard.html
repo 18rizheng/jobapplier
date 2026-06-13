@@ -128,6 +128,9 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
           {% if j.has_preview %}<a href="/files/{{ j.id }}/form_filled.png" target="_blank">▣ filled form preview</a>{% endif %}
           {% for f in ['resume_tailored.pdf','cover_letter.md'] %}<a href="/files/{{ j.id }}/{{ f }}" target="_blank">{{ f }}</a>{% endfor %}
         </div>
+        {% if j.proposed %}<div class="risks" style="color:var(--amber);opacity:.95">
+          {% for p in j.proposed %}✎ {{ p }}<br>{% endfor %}</div>{% endif %}
+        {% if j.still_blocked %}<div class="risks">⚠ still needs you: {% for b in j.still_blocked %}{{ b }}; {% endfor %}</div>{% endif %}
         {% if j.cover_letter %}<details><summary>cover letter</summary><pre>{{ j.cover_letter }}</pre></details>{% endif %}
         <div class="actions" style="margin-top:10px">
           <button class="btn ok" style="border-color:var(--amber);color:var(--amber)" onclick="send({{ j.id }})">Approve &amp; SEND</button>

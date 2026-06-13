@@ -113,8 +113,46 @@ def _fill_control(page, label, key, bank):
     return None
 
 
+def _fill_freeform(page, label, value):
+    """Fill a control with an arbitrary proposed value (text, or Yes/No select/radio)."""
+    for_id = label.get_attribute("for")
+    control = page.locator(f"[id='{for_id}']") if for_id else None
+    if not (control and control.count()):
+        control = label.locator(
+            "xpath=following::*[self::input or self::select or self::textarea][1]")
+    if not control.count():
+        return None
+    control = control.first
+    tag = control.evaluate("el => el.tagName.toLowerCase()")
+    ctype = (control.get_attribute("type") or "").lower()
+    if tag == "select":
+        options = control.locator("option").all_inner_texts()
+        target = next((o for o in options if o.strip().lower() == value.lower()), None) \
+            or next((o for o in options if value.lower() in o.lower()), None)
+        if not target:
+            return None
+        control.select_option(label=target)
+        return target.strip()
+    if ctype in ("radio", "checkbox"):
+        group = control.get_attribute("name")
+        if not group:
+            return None
+        radios = page.locator(f"input[name='{group}']")
+        for i in range(radios.count()):
+            rid = radios.nth(i).get_attribute("id")
+            rlabel = page.locator(f"label[for='{rid}']").first if rid else None
+            text = (rlabel.inner_text().strip() if rlabel and rlabel.count() else "")
+            if text.lower().startswith(value.lower()[:3]):
+                radios.nth(i).check()
+                return text
+        return None
+    control.fill(value)
+    return value
+
+
 def apply_greenhouse(url, folder: Path, answers: dict, submit: bool = False,
-                     headless: bool = True) -> dict:
+                     headless: bool = True, answer_screening: bool = True,
+                     row: dict = None) -> dict:
     """Returns a fill report dict; writes form_filled.png + fill_report.json."""
     from playwright.sync_api import sync_playwright
 
@@ -124,8 +162,10 @@ def apply_greenhouse(url, folder: Path, answers: dict, submit: bool = False,
     bank.setdefault("linkedin", contact.get("linkedin", ""))
     resume = next((p for p in folder.iterdir()
                    if p.name.startswith("resume") and p.suffix in (".pdf", ".docx")), None)
-    report = {"url": url, "filled": [], "mapped_questions": [],
+    report = {"url": url, "filled": [], "mapped_questions": [], "proposed_answers": [],
               "unmapped_required": [], "submitted": False}
+    # labels (text -> Locator index) kept so a second pass can fill proposed answers
+    unmapped_labels = {}
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=headless)
@@ -199,8 +239,33 @@ def apply_greenhouse(url, folder: Path, answers: dict, submit: bool = False,
                         f"{text[:70]} -> {matched} = {value_set[:60]!r}")
                 elif required:
                     report["unmapped_required"].append(text[:120])
+                    unmapped_labels[text] = i
             elif required:
                 report["unmapped_required"].append(text[:120])
+                unmapped_labels[text] = i
+
+        # second pass: LLM-propose grounded answers for the leftover required
+        # questions (EEO/category ones were already excluded above)
+        if answer_screening and unmapped_labels and row is not None:
+            from pipeline import screening
+            proposed = screening.answer_questions(list(unmapped_labels), row)
+            # the LLM drops the required-marker '*' and trailing punctuation, so
+            # match on a normalized key rather than the raw label text
+            norm = lambda s: s.rstrip(" *:?").strip().lower()
+            by_norm = {norm(k): v for k, v in proposed.items()}
+            for text, idx in unmapped_labels.items():
+                ans = proposed.get(text) or by_norm.get(norm(text))
+                if not ans:
+                    continue
+                try:
+                    set_val = _fill_freeform(page, labels.nth(idx), ans)
+                except Exception:
+                    set_val = None
+                if set_val is not None:
+                    report["proposed_answers"].append(f"{text[:70]} = {set_val[:50]!r} [proposed]")
+                    trunc = text[:120]
+                    if trunc in report["unmapped_required"]:
+                        report["unmapped_required"].remove(trunc)
 
         page.screenshot(path=folder / "form_filled.png", full_page=True)
 

@@ -100,7 +100,8 @@ def main(submit=False, open_browser=False, only_id=None):
                     blocked += 1
                     continue
             report = greenhouse.apply_greenhouse(target, folder, answers,
-                                                 submit=really_submit, headless=True)
+                                                 submit=really_submit, headless=True,
+                                                 row=dict(row))
             if report["unmapped_required"]:
                 print(f"    blocked on required questions: {report['unmapped_required'][:3]}")
                 blocked += 1

@@ -61,6 +61,12 @@ def dashboard():
             job["folder"] = folder.name
             job["has_preview"] = (folder / "form_filled.png").exists()
             job["cover_letter"] = _read(folder, "cover_letter.md", 4000)
+            try:
+                fr = json.loads(_read(folder, "fill_report.json") or "{}")
+                job["proposed"] = fr.get("proposed_answers", [])
+                job["still_blocked"] = fr.get("unmapped_required", [])
+            except (json.JSONDecodeError, TypeError):
+                job["proposed"], job["still_blocked"] = [], []
         awaiting.append(job)
 
     packages = []
