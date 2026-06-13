@@ -36,6 +36,14 @@ NEVER_AUTOFILL = re.compile(
 YES_NO = {"requires_sponsorship": "no", "work_authorization": "yes",
           "willing_to_relocate": "yes", "security_clearance": "no"}
 
+
+def _option_matches(option_text, want):
+    """True only when option_text is `want` or `want` followed by a word boundary -
+    so 'No' / 'No, I do not' match want='no' but 'Not sure' / 'None' do NOT."""
+    opt = option_text.strip().lower()
+    want = want.lower()
+    return opt == want or (opt.startswith(want) and not opt[len(want):len(want) + 1].isalpha())
+
 STD_WORDS = ("resume", "cover letter", "first name", "last name", "email", "phone", "full name")
 
 
@@ -80,7 +88,7 @@ def _fill_control(page, label, key, bank):
         options = control.locator("option").all_inner_texts()
         target = None
         if want:
-            target = next((o for o in options if o.strip().lower().startswith(want)), None)
+            target = next((o for o in options if _option_matches(o, want)), None)
         else:
             target = next((o for o in options if answer.lower() in o.lower()
                            or o.strip().lower() in answer.lower()), None)
@@ -102,7 +110,7 @@ def _fill_control(page, label, key, bank):
             rid = radio.get_attribute("id")
             rlabel = page.locator(f"label[for='{rid}']").first if rid else None
             text = (rlabel.inner_text().strip() if rlabel and rlabel.count() else "")
-            if text.lower().startswith(want):
+            if _option_matches(text, want):
                 radio.check()
                 return text
         return None
@@ -128,6 +136,7 @@ def _fill_freeform(page, label, value):
     if tag == "select":
         options = control.locator("option").all_inner_texts()
         target = next((o for o in options if o.strip().lower() == value.lower()), None) \
+            or next((o for o in options if _option_matches(o, value)), None) \
             or next((o for o in options if value.lower() in o.lower()), None)
         if not target:
             return None
@@ -142,7 +151,7 @@ def _fill_freeform(page, label, value):
             rid = radios.nth(i).get_attribute("id")
             rlabel = page.locator(f"label[for='{rid}']").first if rid else None
             text = (rlabel.inner_text().strip() if rlabel and rlabel.count() else "")
-            if text.lower().startswith(value.lower()[:3]):
+            if _option_matches(text, value):
                 radios.nth(i).check()
                 return text
         return None

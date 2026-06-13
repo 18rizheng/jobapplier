@@ -112,6 +112,8 @@ def job_action(job_id, action):
     if action not in transitions:
         abort(400)
     conn = db.connect()
+    if not conn.execute("SELECT 1 FROM jobs WHERE id=?", (job_id,)).fetchone():
+        abort(404)
     if action == "applied":
         conn.execute("UPDATE jobs SET status='applied', applied_at=? WHERE id=?",
                      (datetime.now(timezone.utc).isoformat(timespec="seconds"), job_id))
@@ -125,6 +127,8 @@ def job_action(job_id, action):
 def job_send(job_id):
     """Human approves a fully-filled held application: mark approved and submit headlessly."""
     conn = db.connect()
+    if not conn.execute("SELECT 1 FROM jobs WHERE id=?", (job_id,)).fetchone():
+        abort(404)
     conn.execute("UPDATE jobs SET send_approved=1, status='reviewed' WHERE id=?", (job_id,))
     conn.commit()
     import apply as apply_mod
@@ -142,9 +146,11 @@ def job_sent_manual(job_id):
     """Human finished a partially-filled form in their own browser and submitted it.
     Counts toward the probation tally (it was a human-approved send)."""
     conn = db.connect()
-    conn.execute("UPDATE jobs SET send_approved=1, status='applied', applied_at=? WHERE id=?",
-                 (datetime.now(timezone.utc).isoformat(timespec="seconds"), job_id))
+    cur = conn.execute("UPDATE jobs SET send_approved=1, status='applied', applied_at=? WHERE id=?",
+                       (datetime.now(timezone.utc).isoformat(timespec="seconds"), job_id))
     conn.commit()
+    if cur.rowcount == 0:
+        abort(404)
     return jsonify({"ok": True, "status": "applied"})
 
 
@@ -153,9 +159,11 @@ def job_outcome(job_id, result):
     if result not in ("response", "interview", "offer", "rejected"):
         abort(400)
     conn = db.connect()
-    conn.execute("UPDATE jobs SET outcome=?, outcome_at=? WHERE id=?",
-                 (result, datetime.now(timezone.utc).isoformat(timespec="seconds"), job_id))
+    cur = conn.execute("UPDATE jobs SET outcome=?, outcome_at=? WHERE id=?",
+                       (result, datetime.now(timezone.utc).isoformat(timespec="seconds"), job_id))
     conn.commit()
+    if cur.rowcount == 0:
+        abort(404)
     return jsonify({"ok": True, "outcome": result})
 
 

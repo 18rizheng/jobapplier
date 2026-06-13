@@ -195,6 +195,22 @@ def test_submit_gate_blocks_unmapped():
     assert can_submit({}, True) is True
 
 
+def test_option_matches_word_boundary():
+    from pipeline.adapters.greenhouse import _option_matches
+    # "No" must match these
+    assert _option_matches("No", "no")
+    assert _option_matches("No, I do not", "no")
+    assert _option_matches("No.", "no")
+    # but NOT these - the bug that selected "Not sure" when we meant "No"
+    assert not _option_matches("Not sure", "no")
+    assert not _option_matches("None of the above", "no")
+    assert not _option_matches("Not applicable", "no")
+    # "Yes" boundaries
+    assert _option_matches("Yes", "yes")
+    assert _option_matches("Yes, authorized", "yes")
+    assert not _option_matches("Yesterday", "yes")
+
+
 def test_never_autofill_patterns():
     from pipeline.adapters.greenhouse import NEVER_AUTOFILL
     for q in ("Which work authorization best describes you:", "What is your visa status?",
