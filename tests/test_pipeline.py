@@ -50,6 +50,27 @@ def test_dedup_unicode_and_symbols():
     assert isinstance(h, str) and len(h) == 32
 
 
+def test_upsert_never_reapplies():
+    """Critical invariant: re-discovering an applied job must not reset it or duplicate."""
+    import sqlite3
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(db.SCHEMA)
+    for m in db.MIGRATIONS:
+        try:
+            conn.execute(m)
+        except sqlite3.OperationalError:
+            pass
+    h = db.dedup_hash("IdemCo", "Idem QA")
+    assert db.upsert_job(conn, {"title": "Idem QA", "company": "IdemCo"}) is True
+    conn.execute("UPDATE jobs SET status='applied' WHERE dedup_hash=?", (h,))
+    # variant phrasing of the same role must dedup to the same row
+    assert db.upsert_job(conn, {"title": "Idem QA (Remote)", "company": "IdemCo Inc"}) is False
+    row = conn.execute("SELECT status FROM jobs WHERE dedup_hash=?", (h,)).fetchone()
+    assert row["status"] == "applied"
+    assert conn.execute("SELECT COUNT(*) c FROM jobs WHERE dedup_hash=?", (h,)).fetchone()["c"] == 1
+
+
 # ---- scoring ----
 
 PROFILE = {

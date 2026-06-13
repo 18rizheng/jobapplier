@@ -81,7 +81,8 @@ def main():
            ORDER BY llm_score IS NULL, fit_score DESC LIMIT 50""").fetchall()
 
     out = ROOT / "data" / "ranked_latest.csv"
-    with out.open("w", newline="", encoding="utf-8") as f:
+    # utf-8-sig so Excel on Windows detects UTF-8 (plain utf-8 mojibakes en-dashes)
+    with out.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
         writer.writerow(["title", "company", "location", "salary_yearly_min", "persona",
                          "fit_score", "score_reason", "url", "source"])
