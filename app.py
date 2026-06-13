@@ -159,6 +159,14 @@ def job_outcome(job_id, result):
     return jsonify({"ok": True, "outcome": result})
 
 
+@app.route("/upskill")
+def upskill_report():
+    report = ROOT / "data" / "upskill_report.md"
+    text = report.read_text(encoding="utf-8-sig") if report.exists() else \
+        "No report yet. Run: .venv\\Scripts\\python upskill.py"
+    return render_template("upskill.html", report=text)
+
+
 @app.route("/files/<int:job_id>/<path:name>")
 def job_file(job_id, name):
     folder = _folder_for(job_id)

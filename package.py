@@ -43,25 +43,22 @@ def write_job_md(folder, row):
         encoding="utf-8-sig")
 
 
-def pick_resume(row, profile, folder, score):
+def pick_resume(row, profile, folder, score, brief=""):
     """Generated tailored resume for every approved job (rule changed 2026-06-11);
     persona PDF only as a fallback when generation fails."""
     if tailor.TEMPLATE.exists():
         try:
             out = folder / "resume_tailored.docx"
-            plan = tailor.tailor_resume(dict(row), out)
-            try:
-                from docx2pdf import convert
-                convert(str(out), str(out.with_suffix(".pdf")))
+            plan = tailor.tailor_resume(dict(row), out, brief=brief)
+            # tailor_resume already rendered the PDF during the length guard
+            if out.with_suffix(".pdf").exists():
                 out = out.with_suffix(".pdf")
-            except Exception:
-                pass  # no Word on this machine - the docx is still submittable
             bullets = "\n".join(f"- {b}" for b in plan.experience_bullets)
             (folder / "tailoring.md").write_text(
                 f"# Tailoring plan\n\n{plan.rationale}\n\n"
                 f"## Generated bullets\n{bullets}\n\n"
                 f"## Skills lines\n" + "\n".join(f"- {s}" for s in plan.skills_lines) + "\n\n"
-                f"Generated from data/facts.md; fabrication-checked by the reviewer gate.\n",
+                f"Generated from data/facts.md{' + company brief' if brief else ''}.\n",
                 encoding="utf-8-sig")
             return out
         except Exception as exc:
@@ -85,16 +82,18 @@ def clean_letter(text):
     return "\n".join(lines).strip() + "\n"
 
 
-def write_cover_letter(folder, row, profile):
+def write_cover_letter(folder, row, profile, brief=""):
     facts = (ROOT / "data" / "facts.md").read_text(encoding="utf-8-sig")
+    brief_block = f"\nCOMPANY BRIEF (reference something specific from this):\n{brief}\n" if brief else ""
     prompt = f"""Write a cover letter for this application. 150-200 words, three short
 paragraphs, plain confident tone. No "I am writing to express", no flattery.
 THE FIRST SENTENCE must name {row['company']} and state the single most compelling,
 specific overlap between the candidate and this exact role - recruiters decide in one
-line whether to keep reading. Every factual claim must be traceable to the FACT CORPUS
-below - rephrasing and the posting's own vocabulary are fine, new facts are not.
-Output ONLY the letter body - no header, no preamble, no separators, no commentary.
-
+line whether to keep reading. If a company brief is given, reference something specific
+and real about the company in the letter. Every factual claim about the CANDIDATE must
+be traceable to the FACT CORPUS below - rephrasing and the posting's own vocabulary are
+fine, new facts are not. Output ONLY the letter body - no header, no preamble.
+{brief_block}
 FACT CORPUS:
 {facts[:6000]}
 
@@ -131,9 +130,13 @@ def main():
         score = row["llm_score"] if row["llm_score"] is not None else row["fit_score"]
         print(f"  {folder.name} (score {score})")
         try:
+            from pipeline import research
+            brief = research.company_brief(row["company"], row["title"])
+            if brief:
+                (folder / "company_brief.md").write_text(brief, encoding="utf-8-sig")
             write_job_md(folder, row)
-            resume_path = pick_resume(row, profile, folder, score)
-            write_cover_letter(folder, row, profile)
+            resume_path = pick_resume(row, profile, folder, score, brief)
+            write_cover_letter(folder, row, profile, brief)
             write_answers(folder, row, profile, resume_path)
         except Exception as exc:
             print(f"  ! failed: {exc}")

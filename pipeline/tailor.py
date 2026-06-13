@@ -18,6 +18,19 @@ from . import llm
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "data" / "resumes" / "general.docx"
 FACTS = ROOT / "data" / "facts.md"
+MAX_PAGES = 2  # one-page template + generated content should never spill past 2
+
+
+def _pdf_pages(docx_path: Path) -> int:
+    """Render the docx to PDF and count pages. Returns 1 if conversion unavailable."""
+    pdf_path = docx_path.with_suffix(".pdf")
+    try:
+        from docx2pdf import convert
+        convert(str(docx_path), str(pdf_path))
+        from pypdf import PdfReader
+        return len(PdfReader(str(pdf_path)).pages)
+    except Exception:
+        return 1
 
 
 class TailoredResume(BaseModel):
@@ -35,8 +48,9 @@ Respond with ONLY a JSON object, no markdown fences, matching exactly:
 "rationale": "<2-3 sentences>"}"""
 
 
-def _build_prompt(job, facts):
-    return f"""Rewrite this candidate's resume content to fit one specific job posting.
+def _build_prompt(job, facts, brief=""):
+    brief_block = f"\nCOMPANY BRIEF (use to angle emphasis, do not quote verbatim):\n{brief}\n" if brief else ""
+    return f"""Rewrite this candidate's resume content to fit one specific job posting.{brief_block}
 
 You may rewrite bullets from scratch: re-phrase, merge, split, re-emphasize, and mirror
 the posting's vocabulary aggressively. Write tight, metric-forward bullets (one line
@@ -126,13 +140,14 @@ def _write_block(paragraphs, lines):
 
 
 def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
-                  avoid_issues: list[str] | None = None) -> TailoredResume:
+                  avoid_issues: list[str] | None = None, brief: str = "") -> TailoredResume:
     """Write a regenerated resume docx to out_path. Returns the plan.
-    avoid_issues: reviewer findings from a prior attempt - hard constraints now."""
+    avoid_issues: reviewer findings from a prior attempt - hard constraints now.
+    brief: optional company research brief to angle emphasis."""
     from docx import Document
 
     facts = FACTS.read_text(encoding="utf-8-sig")
-    prompt = _build_prompt(job, facts)
+    prompt = _build_prompt(job, facts, brief)
     if avoid_issues:
         prompt += ("\n\nA previous attempt was REJECTED by the fabrication reviewer for "
                    "the violations below. Do not repeat them or introduce equivalents:\n"
@@ -147,13 +162,23 @@ def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
     if not (8 <= n_words <= 45):
         raise ValueError(f"summary should be 15-35 words, got {n_words}")
 
-    doc = Document(TEMPLATE)
-    # tailored summary goes right under the contact line, before the first heading
-    summary_p = doc.paragraphs[2].insert_paragraph_before(plan.summary)
-    summary_p.runs[0].italic = True
-    blocks = _bullet_blocks(doc)
-    _write_block(blocks[0], plan.experience_bullets)
-    _write_block(blocks[1], plan.skills_lines)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(out_path)
+    def render(experience_bullets):
+        doc = Document(TEMPLATE)
+        # tailored summary goes right under the contact line, before the first heading
+        summary_p = doc.paragraphs[2].insert_paragraph_before(plan.summary)
+        summary_p.runs[0].italic = True
+        blocks = _bullet_blocks(doc)
+        _write_block(blocks[0], experience_bullets)
+        _write_block(blocks[1], plan.skills_lines)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        doc.save(out_path)
+
+    # length guard: render, check PDF page count, trim lowest-priority (trailing)
+    # bullets and re-render until it fits within MAX_PAGES or we hit the floor of 7
+    bullets = list(plan.experience_bullets)
+    render(bullets)
+    while len(bullets) > 7 and _pdf_pages(out_path) > MAX_PAGES:
+        bullets = bullets[:-1]
+        render(bullets)
+    plan.experience_bullets = bullets
     return plan
