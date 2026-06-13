@@ -18,7 +18,9 @@ from . import llm
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "data" / "resumes" / "general.docx"
 FACTS = ROOT / "data" / "facts.md"
-MAX_PAGES = 2  # one-page template + generated content should never spill past 2
+MAX_PAGES = 1  # this candidate has one main role: target a single, FULL page
+MIN_BULLETS = 7  # never trim below this even if it slightly overflows
+MAX_BULLETS = 12  # generate long, then trim to fill exactly one page
 
 
 def _pdf_pages(docx_path: Path) -> int:
@@ -35,7 +37,7 @@ def _pdf_pages(docx_path: Path) -> int:
 
 class TailoredResume(BaseModel):
     summary: str                    # 15-35 word professional summary aimed at THIS job
-    experience_bullets: list[str]   # 7-9 rewritten bullets, job-matched order
+    experience_bullets: list[str]   # 10-12 rewritten bullets (trimmed to fill one page)
     skills_lines: list[str]         # exactly 4 "Category: a, b, c" lines
     rationale: str                  # what was emphasized and why, 2-3 sentences
 
@@ -43,7 +45,7 @@ class TailoredResume(BaseModel):
 _SCHEMA_NOTE = """
 
 Respond with ONLY a JSON object, no markdown fences, matching exactly:
-{"summary": "<15-35 word professional summary>", "experience_bullets": [<7-9 strings>],
+{"summary": "<15-35 word professional summary>", "experience_bullets": [<10-12 strings>],
 "skills_lines": [<exactly 4 strings like "Category: item, item, item">],
 "rationale": "<2-3 sentences>"}"""
 
@@ -104,8 +106,13 @@ Produce:
 1. A professional summary (15-35 words, no first person, no objective-statement cliches)
    positioning the candidate for THIS role specifically - a recruiter skimming 6 seconds
    should immediately see the match.
-2. 7-9 experience bullets for the Epic Systems Quality Manager role (the earlier
-   tutoring/hospital roles stay untouched in the template).
+2. 10 to 12 experience bullets for the Epic Systems Quality Manager role. Each must be
+   substantive - a full line that often wraps to two, roughly 22 to 40 words, with a
+   concrete result or number where possible. The candidate has deep material (years of
+   QA across healthcare interoperability, AI automation, release management,
+   international work), so there is plenty to draw on. The goal is a resume that FILLS
+   one full page; a half-empty page reads as thin. Write the full set; the system trims
+   the weakest trailing bullets if it overflows.
 3. Exactly 4 skills lines in "Category: items" form, categories and orderings chosen
    for THIS posting."""
 
@@ -169,8 +176,9 @@ def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
     plan.experience_bullets = [destyle.de_ai(b) for b in plan.experience_bullets]
     plan.skills_lines = [destyle.de_ai(s) for s in plan.skills_lines]
 
-    if not (7 <= len(plan.experience_bullets) <= 9):
-        raise ValueError(f"expected 7-9 experience bullets, got {len(plan.experience_bullets)}")
+    if not (MIN_BULLETS <= len(plan.experience_bullets) <= MAX_BULLETS + 2):
+        raise ValueError(f"expected {MIN_BULLETS}-{MAX_BULLETS} bullets, "
+                         f"got {len(plan.experience_bullets)}")
     if len(plan.skills_lines) != 4:
         raise ValueError(f"expected 4 skills lines, got {len(plan.skills_lines)}")
     n_words = len(plan.summary.split())
@@ -190,11 +198,11 @@ def tailor_resume(job: dict, out_path: Path, model: str = llm.DEFAULT_MODEL,
         out_path.parent.mkdir(parents=True, exist_ok=True)
         doc.save(out_path)
 
-    # length guard: render, check PDF page count, trim lowest-priority (trailing)
-    # bullets and re-render until it fits within MAX_PAGES or we hit the floor of 7
+    # length guard: generate long, then trim the weakest (trailing) bullets until it
+    # fits one page - the standard way to produce a single, FULL page
     bullets = list(plan.experience_bullets)
     render(bullets)
-    while len(bullets) > 7 and _pdf_pages(out_path) > MAX_PAGES:
+    while len(bullets) > MIN_BULLETS and _pdf_pages(out_path) > MAX_PAGES:
         bullets = bullets[:-1]
         render(bullets)
     plan.experience_bullets = bullets
