@@ -113,6 +113,14 @@ def main(submit=False, prepare=False, open_browser=False, only_id=None):
                 # autonomy lane couldn't complete it headlessly - leave for the human
                 print(f"    blocked on required questions: {report['unmapped_required'][:3]}")
                 blocked += 1
+            elif really_submit and not report.get("submit_verified", True):
+                # we clicked submit but could NOT confirm it went through - never
+                # claim 'applied'. Hold for the human to verify via the screenshot.
+                conn.execute("UPDATE jobs SET status='awaiting_send' WHERE id=?", (row["id"],))
+                conn.commit()
+                held += 1
+                print(f"    UNCONFIRMED submit - held for you to verify: "
+                      f"{folder.name}\\form_submitted.png")
             elif prepare or submit:
                 # probation (or a held job): surface it for review even if a field
                 # still needs the human - the card shows what's left

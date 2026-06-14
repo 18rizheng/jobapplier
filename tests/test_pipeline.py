@@ -261,6 +261,20 @@ def test_option_matches_word_boundary():
     assert not _option_matches("Yesterday", "yes")
 
 
+def test_submission_confirmed():
+    from pipeline.adapters.greenhouse import submission_confirmed
+    # positive: a success phrase on the page
+    assert submission_confirmed("Thank you for applying to Garner!", False, False)
+    assert submission_confirmed("Your application has been received.", False, False)
+    # positive: navigated away AND the form is gone
+    assert submission_confirmed("", True, True)
+    # negative: clicking alone, form still there, no phrase -> NOT confirmed
+    assert not submission_confirmed("Please fix the errors below", False, False)
+    assert not submission_confirmed("", True, False)   # url changed but form still present
+    assert not submission_confirmed("", False, True)   # form gone but no nav/phrase
+    assert not submission_confirmed("", False, False)
+
+
 def test_never_autofill_patterns():
     from pipeline.adapters.greenhouse import NEVER_AUTOFILL
     for q in ("Which work authorization best describes you:", "What is your visa status?",

@@ -12,17 +12,26 @@ import apply as apply_mod
 import package
 from pipeline import db
 
-THRESHOLD = (float(sys.argv[sys.argv.index("--threshold") + 1])
-             if "--threshold" in sys.argv else 6.0)
+
+def _arg(flag, default):
+    return type(default)(sys.argv[sys.argv.index(flag) + 1]) if flag in sys.argv else default
+
+
+THRESHOLD = _arg("--threshold", 6.0)
+MAX_PER_RUN = _arg("--max", 15)  # cap packaging per run so a daily job can't run for hours
 
 
 def main():
     conn = db.connect()
-    approved = conn.execute(
-        "UPDATE jobs SET status='queued' WHERE status='scored' AND llm_score >= ?",
-        (THRESHOLD,)).rowcount
+    # approve the best-scoring jobs first, capped, so a big discovery day doesn't
+    # spawn hours of packaging that the scheduled task's time limit would kill mid-run
+    ids = [r["id"] for r in conn.execute(
+        """SELECT id FROM jobs WHERE status='scored' AND llm_score >= ?
+           ORDER BY llm_score DESC LIMIT ?""", (THRESHOLD, MAX_PER_RUN)).fetchall()]
+    for job_id in ids:
+        conn.execute("UPDATE jobs SET status='queued' WHERE id=?", (job_id,))
     conn.commit()
-    print(f"autopilot: auto-approved {approved} jobs at >= {THRESHOLD}")
+    print(f"autopilot: auto-approved {len(ids)} jobs at >= {THRESHOLD} (cap {MAX_PER_RUN})")
 
     package.main()
     if db.autonomy_unlocked(conn):

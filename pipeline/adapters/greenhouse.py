@@ -53,6 +53,21 @@ def can_submit(report: dict, submit_requested: bool) -> bool:
     return bool(submit_requested) and not report.get("unmapped_required")
 
 
+SUCCESS_PHRASES = (
+    "thank you for applying", "application submitted", "we have received",
+    "successfully submitted", "thanks for applying", "application has been",
+    "received your application", "your submission",
+)
+
+
+def submission_confirmed(body_text: str, url_changed: bool, form_gone: bool) -> bool:
+    """A submission counts as confirmed ONLY with a positive signal: a success
+    phrase on the page, or the URL changed AND the upload form is gone. Clicking
+    alone is never enough (a false 'applied' is the worst outcome)."""
+    body = (body_text or "").lower()
+    return any(p in body for p in SUCCESS_PHRASES) or (url_changed and form_gone)
+
+
 def _fill_first(page, selectors, value):
     for sel in selectors:
         loc = page.locator(sel)
@@ -279,10 +294,28 @@ def apply_greenhouse(url, folder: Path, answers: dict, submit: bool = False,
         page.screenshot(path=folder / "form_filled.png", full_page=True)
 
         if can_submit(report, submit):
-            page.get_by_role("button", name=re.compile("submit", re.I)).first.click()
-            page.wait_for_timeout(5000)
+            url_before = page.url
+            try:
+                page.get_by_role("button", name=re.compile("submit", re.I)).first.click()
+                page.wait_for_timeout(6000)
+            except Exception as exc:
+                report["submit_note"] = f"submit click failed: {str(exc)[:120]}"
             page.screenshot(path=folder / "form_submitted.png", full_page=True)
-            report["submitted"] = True
+            # NEVER mark submitted without a positive confirmation - a false 'applied'
+            # is the worst outcome (job never retried, counter wrongly incremented)
+            try:
+                body = page.inner_text("body", timeout=3000)
+            except Exception:
+                body = ""
+            confirmed = submission_confirmed(
+                body, page.url != url_before,
+                page.locator("input[type='file']").count() == 0)
+            report["submitted"] = bool(confirmed)
+            report["submit_verified"] = confirmed
+            if not confirmed:
+                report["submit_note"] = (report.get("submit_note", "")
+                    + " clicked submit but could not confirm success; verify via "
+                      "form_submitted.png").strip()
         browser.close()
 
     (folder / "fill_report.json").write_text(json.dumps(report, indent=2),
