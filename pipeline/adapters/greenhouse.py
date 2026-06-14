@@ -28,10 +28,13 @@ KNOWN_QUESTIONS = [
     (r"preferred name", "preferred_name"),
 ]
 
-# questions that look mappable but need a HUMAN choice - never auto-fill
+# questions that look mappable but need a HUMAN choice - never auto-fill.
+# Covers EEO/demographic (must be the user's own selection) and fields we must
+# not fabricate (home address). The screening LLM never sees these.
 NEVER_AUTOFILL = re.compile(
-    r"best describes|citizenship|visa (status|type)|immigration|race|ethnic|gender|"
-    r"veteran|disability|demographic", re.IGNORECASE)
+    r"best describes|citizenship|visa (status|type)|immigration|\brace\b|ethnic|gender|"
+    r"veteran|disability|demographic|sexual orientation|transgender|lgbtq|pronoun|"
+    r"home address|street address|mailing address|residential address", re.IGNORECASE)
 
 # keys whose canonical answer reduces to yes/no for select/radio controls
 YES_NO = {"requires_sponsorship": "no", "work_authorization": "yes",

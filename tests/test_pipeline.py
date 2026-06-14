@@ -294,9 +294,14 @@ def test_never_autofill_patterns():
     from pipeline.adapters.greenhouse import NEVER_AUTOFILL
     for q in ("Which work authorization best describes you:", "What is your visa status?",
               "Race/Ethnicity", "Veteran status", "Do you have a disability?",
-              "Gender identity"):
+              "Gender identity", "Sexual orientation (Mark all that apply)",
+              "I identify as transgender", "Are you LGBTQ+?", "What are your pronouns?",
+              "Home Address", "Street Address"):
         assert NEVER_AUTOFILL.search(q), q
-    assert not NEVER_AUTOFILL.search("Are you legally authorized to work in the US?")
+    # must NOT block answerable questions
+    for ok in ("Are you legally authorized to work in the US?",
+               "Will you require sponsorship?", "Email address", "What is your start date?"):
+        assert not NEVER_AUTOFILL.search(ok), ok
 
 
 def test_detect_lane():
