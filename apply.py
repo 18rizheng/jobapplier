@@ -45,16 +45,18 @@ def effective_url(conn, row):
     return resolved
 
 
-def write_assist(folder, row, answers):
+def write_assist(folder, row, answers, apply_url=None):
     from urllib.parse import quote
     locked = "\n".join(f"- {k}: {v}" for k, v in answers["answers"].items())
     referral = ("https://www.linkedin.com/search/results/people/?keywords="
                 + quote(row["company"] or ""))
+    # prefer a resolved direct company application URL over the Indeed mirror
+    open_url = apply_url if (apply_url and "indeed.com" not in apply_url) else row["url"]
     (folder / "assist.md").write_text(
         f"# Assisted application: {row['title']} - {row['company']}\n\n"
         f"0. BEFORE applying, check for connections (referrals beat every other channel):\n"
         f"   {referral}\n"
-        f"1. Open: {row['url']}\n"
+        f"1. Open: {open_url}\n"
         f"2. Attach: {answers['resume_file']} (in this folder)\n"
         f"3. Cover letter: cover_letter.md (in this folder)\n"
         f"4. Screening answers (locked canonical values):\n{locked}\n\n"
@@ -134,10 +136,10 @@ def main(submit=False, prepare=False, open_browser=False, only_id=None):
             else:
                 print(f"    filled (dry): see {folder.name}\\form_filled.png")
         else:
-            write_assist(folder, row, answers)
+            write_assist(folder, row, answers, apply_url=target)
             assisted += 1
             if open_browser:
-                webbrowser.open(row["url"])
+                webbrowser.open(target or row["url"])
             print(f"    checklist: {folder.name}\\assist.md")
 
     print(f"\nsubmitted {sent}, held for approval {held}, "
