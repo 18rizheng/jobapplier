@@ -10,14 +10,15 @@
       "Seattle, WA",
       "Boston, MA",
       "Austin, TX",
-      "Chicago, IL",
-      "Denver, CO",
       "Madison, WI"
     ],
     "terms": {
       "technical": ["QA Automation Engineer", "SDET", "Software Quality Engineer"],
       "analyst_pm": ["Business Analyst", "Project Manager", "Technical Project Manager", "Implementation Project Manager"],
-      "product": ["Product Manager", "Technical Product Manager", "Associate Product Manager", "Technical Program Manager"]
+      "product": ["Product Manager", "Technical Product Manager", "Associate Product Manager", "Technical Program Manager"],
+      "healthcare_it": ["Healthcare IT Analyst", "Clinical Systems Analyst", "Epic Analyst", "Healthcare Integration Engineer", "Clinical Informatics Analyst"],
+      "ai_solutions": ["AI Engineer", "AI Automation Engineer", "Forward Deployed Engineer", "Solutions Engineer", "Implementation Engineer"],
+      "qa_leadership": ["QA Lead", "Release Manager", "Customer Success Engineer"]
     }
   },
   "ats": {
