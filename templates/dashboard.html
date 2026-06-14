@@ -127,7 +127,8 @@ details pre{white-space:pre-wrap;font:400 11.5px var(--mono);color:var(--dim);ba
         <div class="co">{{ j.company }} · {{ '%.0f'|format(j.llm_score if j.llm_score is not none else j.fit_score) }}/10</div>
         <div class="files">
           {% if j.has_preview %}<a href="/files/{{ j.id }}/form_filled.png" target="_blank">filled form preview</a>{% endif %}
-          {% for f in ['resume_tailored.pdf','cover_letter.md'] %}<a href="/files/{{ j.id }}/{{ f }}" target="_blank">{{ f }}</a>{% endfor %}
+          {% if j.resume_file %}<a href="/files/{{ j.id }}/{{ j.resume_file }}" target="_blank">{{ j.resume_file }}</a>{% endif %}
+          <a href="/files/{{ j.id }}/cover_letter.md" target="_blank">cover_letter.md</a>
         </div>
         {% if j.proposed %}<div class="risks" style="color:var(--amber);opacity:.95">
           {% for p in j.proposed %}proposed: {{ p }}<br>{% endfor %}</div>{% endif %}

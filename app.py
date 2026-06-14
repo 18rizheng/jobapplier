@@ -61,6 +61,9 @@ def dashboard():
             job["folder"] = folder.name
             job["has_preview"] = (folder / "form_filled.png").exists()
             job["cover_letter"] = _read(folder, "cover_letter.md", 4000)
+            job["resume_file"] = next(
+                (p.name for p in folder.iterdir()
+                 if p.name.startswith("resume") and p.suffix == ".pdf"), None)
             try:
                 fr = json.loads(_read(folder, "fill_report.json") or "{}")
                 job["proposed"] = fr.get("proposed_answers", [])
