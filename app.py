@@ -170,6 +170,14 @@ def job_outcome(job_id, result):
     return jsonify({"ok": True, "outcome": result})
 
 
+@app.route("/favicon.ico")
+def favicon():
+    # tiny inline SVG favicon (blue dot) - silences the 404, stays on brand
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+           '<circle cx="16" cy="16" r="14" fill="#0071e3"/></svg>')
+    return app.response_class(svg, mimetype="image/svg+xml")
+
+
 @app.route("/upskill")
 def upskill_report():
     report = ROOT / "data" / "upskill_report.md"
