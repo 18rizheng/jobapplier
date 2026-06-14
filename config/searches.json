@@ -8,22 +8,16 @@
       "New York, NY",
       "San Francisco Bay Area, CA",
       "Seattle, WA",
-      "Chicago, IL",
       "Boston, MA",
       "Austin, TX",
-      "Dallas-Fort Worth, TX",
-      "Los Angeles, CA",
+      "Chicago, IL",
       "Denver, CO",
-      "Atlanta, GA",
-      "Washington, DC",
-      "Minneapolis, MN",
-      "Madison, WI",
-      "Raleigh-Durham, NC",
-      "Philadelphia, PA"
+      "Madison, WI"
     ],
     "terms": {
       "technical": ["QA Automation Engineer", "SDET", "Software Quality Engineer"],
-      "analyst_pm": ["Business Analyst", "Technical Project Manager", "Implementation Project Manager"]
+      "analyst_pm": ["Business Analyst", "Project Manager", "Technical Project Manager", "Implementation Project Manager"],
+      "product": ["Product Manager", "Technical Product Manager", "Associate Product Manager", "Technical Program Manager"]
     }
   },
   "ats": {

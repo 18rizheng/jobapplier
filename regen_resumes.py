@@ -2,6 +2,7 @@
 fill-the-page logic. Keeps the existing cover letter. No cover-letter LLM call.
 """
 
+import sys
 from pathlib import Path
 
 from pipeline import db, research, tailor
@@ -10,10 +11,20 @@ APPS = Path(__file__).resolve().parent / "data" / "applications"
 
 
 def main():
+    from docx import Document
     conn = db.connect()
     for folder in sorted(APPS.glob("*")):
-        if not (folder / "resume_tailored.docx").is_file():
+        docx = folder / "resume_tailored.docx"
+        if not docx.is_file():
             continue
+        # skip resumes already filled out (>=10 experience bullets) unless --force
+        if "--force" not in sys.argv:
+            try:
+                n = len(tailor._bullet_blocks(Document(docx))[0])
+                if n >= 10:
+                    continue
+            except Exception:
+                pass
         try:
             job_id = int(folder.name.split("-")[0])
         except ValueError:
