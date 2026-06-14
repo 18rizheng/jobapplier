@@ -275,6 +275,21 @@ def test_submission_confirmed():
     assert not submission_confirmed("", False, False)
 
 
+def test_sponsorship_beats_human_only_guard():
+    from pipeline.adapters.greenhouse import is_human_only
+    bank = {"requires_sponsorship": "No, I do not now or in the future require sponsorship"}
+    # the sponsorship question phrased with 'visa status' must be ANSWERABLE, not blocked
+    q = "Will you now or in the future require sponsorship for employment visa status (H-1B)?"
+    assert is_human_only(q, "requires_sponsorship", bank) is False
+    # but a genuine visa-category question stays human-only
+    assert is_human_only("What is your current visa status?", None, bank) is True
+    assert is_human_only("Which work authorization best describes you?", "work_authorization", bank) is True
+    # EEO stays human-only
+    assert is_human_only("What is your gender identity?", None, bank) is True
+    # if no sponsorship answer in the bank, don't pretend we can answer
+    assert is_human_only(q, "requires_sponsorship", {}) is True
+
+
 def test_never_autofill_patterns():
     from pipeline.adapters.greenhouse import NEVER_AUTOFILL
     for q in ("Which work authorization best describes you:", "What is your visa status?",

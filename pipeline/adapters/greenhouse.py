@@ -22,6 +22,7 @@ KNOWN_QUESTIONS = [
     (r"linkedin", "linkedin"),
     (r"how did you hear|hear about", "how_did_you_hear"),
     (r"^country", "country"),
+    (r"which state|state.*resid|residen.*state|state of residence|^state\b", "state"),
     (r"location \(city\)|current location|city|location are you|where are you (located|based)", "location_city"),
     (r"years of (relevant |professional )?experience", "years_experience"),
     (r"preferred name", "preferred_name"),
@@ -35,6 +36,16 @@ NEVER_AUTOFILL = re.compile(
 # keys whose canonical answer reduces to yes/no for select/radio controls
 YES_NO = {"requires_sponsorship": "no", "work_authorization": "yes",
           "willing_to_relocate": "yes", "security_clearance": "no"}
+
+
+def is_human_only(text, matched, bank):
+    """Whether a screening question must be left for a human. Sponsorship is
+    answerable from the locked bank even when phrased with 'visa status'
+    (e.g. 'require sponsorship for employment visa status'); the visa-category
+    and EEO questions are not."""
+    if matched == "requires_sponsorship" and bank.get("requires_sponsorship"):
+        return False
+    return bool(NEVER_AUTOFILL.search(text))
 
 
 def _option_matches(option_text, want):
@@ -247,12 +258,12 @@ def apply_greenhouse(url, folder: Path, answers: dict, submit: bool = False,
             if any(w in lowered for w in STD_WORDS):
                 continue
             required = "*" in text
-            if NEVER_AUTOFILL.search(text):
+            matched = next((key for pattern, key in KNOWN_QUESTIONS
+                            if re.search(pattern, lowered)), None)
+            if is_human_only(text, matched, bank):
                 if required:
                     report["unmapped_required"].append(text[:120] + " [human only]")
                 continue
-            matched = next((key for pattern, key in KNOWN_QUESTIONS
-                            if re.search(pattern, lowered)), None)
             if matched:
                 try:
                     value_set = _fill_control(page, label, matched, bank)
