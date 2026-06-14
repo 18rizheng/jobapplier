@@ -1,6 +1,6 @@
 {
   "jobspy": {
-    "sites": ["indeed", "linkedin", "zip_recruiter", "glassdoor", "google"],
+    "sites": ["indeed", "linkedin", "google"],
     "results_wanted": 15,
     "hours_old": 72,
     "locations": [
